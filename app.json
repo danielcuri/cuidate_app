@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "cuidate-app",
+    "name": "Cuidate App",
     "slug": "cuidate-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash-pamolsa.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -15,16 +15,38 @@
       "supportsTablet": true
     },
     "android": {
+      "icon": "./assets/icon.png",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#ffffff",
+        "foregroundImage": "./assets/icon.png"  
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.anonymous.cuidateapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-web-browser",
+      "expo-sharing",
+      "expo-secure-store",
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "La app necesita acceso a la galería para adjuntar documentos del descanso médico.",
+          "cameraPermission": "La app necesita la cámara para fotografiar certificados y recetas."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d2f34dfd-b5c4-4023-8b22-15a7ddd2564d"
+      }
     }
   }
 }
