@@ -1,7 +1,7 @@
 /** Aligned with Ionic `src/environments/environment.ts` (dev). */
 export const environment = {
-  production: false,
-  api_url: 'https://tekobu.com/api',
-  api_url_learning: 'https://learning.tekobu.com/api',
-  api_url_medical: 'https://medical.tekobu.com/api',
+    production: false,
+    api_url: process.env.EXPO_PUBLIC_API_URL,
+    api_url_learning: process.env.EXPO_PUBLIC_API_URL_LEARNING,
+    api_url_medical: process.env.EXPO_PUBLIC_API_URL_MEDICAL,
 };

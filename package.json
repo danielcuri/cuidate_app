@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
+    "env:push": "eas env:push --environment development --path .env && eas env:push --environment preview --path .env",
+    "build:preview": "eas env:push --environment preview --path .env && eas build -p android --profile preview --clear-cache",
+    "build:dev": "eas env:push --environment development --path .env && eas build -p android --profile development --clear-cache",
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
