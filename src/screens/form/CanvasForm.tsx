@@ -33,11 +33,14 @@ import {
   saveDraft as persistNewDraft,
   updateDraft,
 } from '../../utils/formDrafts';
+import { useFormStore } from '../../stores/formStore';
 import {
   initEmptyFormState,
   buildDbArrays,
   searchFormInList,
   validateEntireForm,
+  hydrateFormDataFromRecord,
+  findFormsRecordById,
   type FormDataShape,
 } from './canvas/canvasFormInit';
 import { FormFieldRenderer, type SelectRequest } from './canvas/FormFieldRenderer';
@@ -75,6 +78,7 @@ export function CanvasForm() {
   const newParams = route.params as RootStackParamList['CanvasForm'];
   const formIdParam = isEditRoute ? editParams.formId : newParams?.formId;
   const draftIndex = isEditRoute ? editParams.index : undefined;
+  const formRecordId = !isEditRoute ? newParams?.formRecordId : undefined;
 
   const allForms = (formService.forms as Forms[]) ?? [];
 
@@ -145,6 +149,20 @@ export function CanvasForm() {
           name: raw.name,
           created: raw.created,
         });
+      } else if (formRecordId != null) {
+        const record = findFormsRecordById(
+          formRecordId,
+          formService.forms_records,
+          useFormStore.getState().forms_records
+        );
+        if (!record) {
+          setErr(
+            'No se encontró el registro en memoria. Abra el envío desde la lista de registros.'
+          );
+          setFormData(null);
+          return;
+        }
+        setFormData(hydrateFormDataFromRecord(f, record, ctx));
       } else {
         const { formData: fd } = initEmptyFormState(f, ctx);
         setFormData(fd);
@@ -157,7 +175,7 @@ export function CanvasForm() {
     } finally {
       setBusy(false);
     }
-  }, [draftIndex, formIdParam, navigation]);
+  }, [draftIndex, formIdParam, formRecordId, navigation]);
 
   useEffect(() => {
     load();

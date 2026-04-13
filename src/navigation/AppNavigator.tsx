@@ -40,7 +40,7 @@ export type RootStackParamList = {
   Actions: undefined;
   ListPending: undefined;
   Formats: undefined;
-  PamolsaActionForm: undefined;
+  PamolsaActionForm: { actionHeaderId?: number; initialSlideIndex?: number } | undefined;
   PamolsaActionFormDetail: { actionId: number };
   Records: undefined;
   ListPamolsa: { active_action?: number } | undefined;
@@ -130,12 +130,12 @@ export function AppNavigator() {
           <Root.Screen
             name="Records"
             component={Records}
-            options={{ ...headerOpts, title: 'Registros' }}
+            options={{ headerShown: false }}
           />
           <Root.Screen
             name="ListPamolsa"
             component={ListPamolsa}
-            options={{ ...headerOpts, title: 'Inspecciones SST' }}
+            options={{ headerShown: false }}
           />
           <Root.Screen name="MedicalMenu" component={MedicalMenu} />
           <Root.Screen

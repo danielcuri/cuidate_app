@@ -14,18 +14,122 @@ import { COLORS } from "../../theme/colors";
 import { userService } from "../../services/UserService";
 import type { RootStackParamList } from "../../navigation/AppNavigator";
 import { MenuHeader } from "@/components/shared/MenuHeader";
+import type { User } from "../../interfaces/login";
 
 type PreMainNav = StackNavigationProp<RootStackParamList, "PreMain">;
+
+type PreMainRouteName = Extract<
+    keyof RootStackParamList,
+    "FormMenu" | "MedicalMenu" | "LearningMenu"
+>;
+
+const DEFAULT_MODULES: PreMainRouteName[] = [
+    "FormMenu",
+    "MedicalMenu",
+    "LearningMenu",
+];
+
+/**
+ * `id` del proyecto → pantalla del stack.
+ * 1 Inspecciones → FormMenu, 2 Capacitaciones → LearningMenu, 3 Salud ocupacional → MedicalMenu
+ */
+const PROJECT_ID_TO_ROUTE: Record<number, PreMainRouteName> = {
+    1: "FormMenu",
+    2: "LearningMenu",
+    3: "MedicalMenu",
+};
+
+function projectIdFromItem(o: Record<string, unknown>): number | null {
+    const id = o.id;
+    if (typeof id === "number" && Number.isFinite(id)) return id;
+    if (typeof id === "string" && id.trim() !== "") {
+        const n = Number(id);
+        return Number.isFinite(n) ? n : null;
+    }
+    return null;
+}
+
 const LOGO_LEFT = require("../../../assets/primero_seguro.jpg");
 const LOGO_RIGHT = require("../../../assets/pamolsa.jpg");
+
+type ModuleBtnStyle = "btnForm" | "btnMedical" | "btnLearning";
+
+const MODULE_UI: Record<
+    PreMainRouteName,
+    {
+        title: string;
+        hint: string;
+        icon: React.ComponentProps<typeof Ionicons>["name"];
+        btnStyle: ModuleBtnStyle;
+    }
+> = {
+    FormMenu: {
+        title: "Formularios",
+        hint: "Acceder a formularios",
+        icon: "document-text-outline",
+        btnStyle: "btnForm",
+    },
+    MedicalMenu: {
+        title: "Medical",
+        hint: "Salud y reposos",
+        icon: "medical-outline",
+        btnStyle: "btnMedical",
+    },
+    LearningMenu: {
+        title: "Learning",
+        hint: "Cursos y certificados",
+        icon: "school-outline",
+        btnStyle: "btnLearning",
+    },
+};
+
+function routeForPamolsaItem(item: unknown): PreMainRouteName | null {
+    if (!item || typeof item !== "object") return null;
+    const pid = projectIdFromItem(item as Record<string, unknown>);
+    if (pid == null) return null;
+    return PROJECT_ID_TO_ROUTE[pid] ?? null;
+}
+
+type MenuRow = { route: PreMainRouteName; title: string };
+
+function menuRowsFromUser(user: Partial<User>): MenuRow[] {
+    const hasKey =
+        user != null && typeof user === "object" && "pamolsa_projects" in user;
+    const raw = user.pamolsa_projects;
+
+    if (!hasKey || raw == null) {
+        return DEFAULT_MODULES.map((route) => ({
+            route,
+            title: MODULE_UI[route].title,
+        }));
+    }
+
+    if (!Array.isArray(raw) || raw.length === 0) {
+        return [];
+    }
+
+    const seen = new Set<PreMainRouteName>();
+    const rows: MenuRow[] = [];
+    for (const item of raw) {
+        const route = routeForPamolsaItem(item);
+        if (!route || seen.has(route)) continue;
+        seen.add(route);
+
+        let title = MODULE_UI[route].title;
+        if (item && typeof item === "object") {
+            const n = (item as Record<string, unknown>).name;
+            if (typeof n === "string" && n.trim().length > 0) {
+                title = n.trim();
+            }
+        }
+        rows.push({ route, title });
+    }
+    return rows;
+}
+
 export function PreMain() {
     const navigation = useNavigation<PreMainNav>();
-
-    const name = userService.user.name ?? "";
-
-    const goForm = () => navigation.navigate("FormMenu");
-    const goMedical = () => navigation.navigate("MedicalMenu");
-    const goLearning = () => navigation.navigate("LearningMenu");
+    const modules = menuRowsFromUser(userService.user as Partial<User>);
 
     const logout = async () => {
         await userService.logout();
@@ -47,57 +151,43 @@ export function PreMain() {
                 contentContainerStyle={styles.scroll}
                 keyboardShouldPersistTaps="handled"
             >
-                <TouchableOpacity
-                    style={[styles.cardBtn, styles.btnForm]}
-                    onPress={goForm}
-                    activeOpacity={0.88}
-                >
-                    <Text style={styles.cardTitle}>Formularios</Text>
-                    <View style={styles.cardRow}>
-                        <Ionicons
-                            name="document-text-outline"
-                            size={40}
-                            color={COLORS.white}
-                        />
-                        <Text style={styles.cardHint}>
-                            Acceder a formularios
+                {modules.length === 0 ? (
+                    <View style={styles.emptyWrap}>
+                        <Text style={styles.emptyText}>
+                            No tiene módulos asignados. Consulte con su
+                            administrador.
                         </Text>
                     </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={[styles.cardBtn, styles.btnMedical]}
-                    onPress={goMedical}
-                    activeOpacity={0.88}
-                >
-                    <Text style={styles.cardTitle}>Medical</Text>
-                    <View style={styles.cardRow}>
-                        <Ionicons
-                            name="medical-outline"
-                            size={40}
-                            color={COLORS.white}
-                        />
-                        <Text style={styles.cardHint}>Salud y reposos</Text>
-                    </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={[styles.cardBtn, styles.btnLearning]}
-                    onPress={goLearning}
-                    activeOpacity={0.88}
-                >
-                    <Text style={styles.cardTitle}>Learning</Text>
-                    <View style={styles.cardRow}>
-                        <Ionicons
-                            name="school-outline"
-                            size={40}
-                            color={COLORS.white}
-                        />
-                        <Text style={styles.cardHint}>
-                            Cursos y certificados
-                        </Text>
-                    </View>
-                </TouchableOpacity>
+                ) : (
+                    modules.map((mod) => {
+                        const meta = MODULE_UI[mod.route];
+                        return (
+                            <TouchableOpacity
+                                key={mod.route}
+                                style={[
+                                    styles.cardBtn,
+                                    styles[meta.btnStyle],
+                                ]}
+                                onPress={() => navigation.navigate(mod.route)}
+                                activeOpacity={0.88}
+                            >
+                                <Text style={styles.cardTitle}>
+                                    {mod.title}
+                                </Text>
+                                <View style={styles.cardRow}>
+                                    <Ionicons
+                                        name={meta.icon}
+                                        size={40}
+                                        color={COLORS.white}
+                                    />
+                                    <Text style={styles.cardHint}>
+                                        {meta.hint}
+                                    </Text>
+                                </View>
+                            </TouchableOpacity>
+                        );
+                    })
+                )}
             </ScrollView>
 
             <SafeAreaView style={styles.fabSafe} edges={["bottom"]}>
@@ -193,5 +283,15 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.25,
         shadowRadius: 3,
+    },
+    emptyWrap: {
+        paddingVertical: 24,
+        paddingHorizontal: 8,
+    },
+    emptyText: {
+        color: COLORS.changePasswordTitle,
+        fontSize: 14,
+        textAlign: "center",
+        lineHeight: 20,
     },
 });

@@ -1,4 +1,4 @@
-import type { FormsList } from "../interfaces/forms";
+import type { FormsList, GetPamolsaRecordsResponse } from "../interfaces/forms";
 import { localStorage } from "../utils/storage";
 import { queryService } from "./QueryService";
 
@@ -58,7 +58,7 @@ export class FormService {
     }): Promise<unknown> {
         return queryService.executeQuery<unknown>(
             "post",
-            "/getListRecords",
+            "/getRecords",
             data,
         );
     }
@@ -84,8 +84,8 @@ export class FormService {
     async getPamolsaRecords(data: {
         last_id?: number;
         area_selected?: number | string;
-    }): Promise<unknown> {
-        return queryService.executeQuery<unknown>(
+    }): Promise<GetPamolsaRecordsResponse> {
+        return queryService.executeQuery<GetPamolsaRecordsResponse>(
             "post",
             "/getPamolsaRecords",
             data,

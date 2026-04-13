@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import type { StackNavigationProp } from '@react-navigation/stack';
-import { useNavigation } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { COLORS } from '../../../theme/colors';
 import type { RootStackParamList } from '../../../navigation/AppNavigator';
+import type { PamolsaActionHeaderListItem } from '../../../interfaces/forms';
 import { formService } from '../../../services/FormService';
 import { loadingService } from '../../../services/LoadingService';
 import { queryService } from '../../../services/QueryService';
@@ -12,9 +14,54 @@ import { alertService } from '../../../services/AlertService';
 import { VirtualSelect, type VirtualSelectItem } from '../../../components/shared/VirtualSelect';
 import { userService } from '../../../services/UserService';
 import { SignaturePad } from '../../../components/shared/SignaturePad';
-import { PamolsaActionFormDetailModal, type PamolsaActionDetailRowType1 } from './PamolsaActionFormDetailModal';
+import {
+  PamolsaActionFormDetailModal,
+  type PamolsaActionDetailRowType1,
+  type PamolsaActionDetailRowType2,
+} from './PamolsaActionFormDetailModal';
 
 type Nav = StackNavigationProp<RootStackParamList, 'PamolsaActionForm'>;
+type PamolsaFormRoute = RouteProp<RootStackParamList, 'PamolsaActionForm'>;
+
+function mapRiskLevel(v: unknown): PamolsaActionDetailRowType1['risk_level'] {
+  if (v === 'Alto' || v === 'Medio' || v === 'Bajo') return v;
+  return '';
+}
+
+function mapDetailSub(raw: unknown): PamolsaActionDetailRowType2 {
+  const r = raw as Record<string, unknown>;
+  return {
+    id: typeof r.id === 'number' ? r.id : undefined,
+    proposed_actions: String(r.proposed_actions ?? ''),
+    area_responsable: typeof r.area_responsable === 'string' ? r.area_responsable : undefined,
+    area_responsable_id: r.area_responsable_id as string | number | undefined,
+    proposed_date: String(r.proposed_date ?? ''),
+    approved: typeof r.approved === 'number' ? r.approved : undefined,
+  };
+}
+
+function coalesceBehaviorId(v: unknown): string | number {
+  if (typeof v === 'string' || typeof v === 'number') {
+    return v;
+  }
+  return '';
+}
+
+function mapDetailRow1(raw: unknown): PamolsaActionDetailRowType1 {
+  const r = raw as Record<string, unknown>;
+  const photos = r.photos_url;
+  const nested = Array.isArray(r.details) ? r.details : [];
+  return {
+    id: typeof r.id === 'number' ? r.id : undefined,
+    findings: String(r.findings ?? ''),
+    pamolsa_behavior_type_id: coalesceBehaviorId(r.pamolsa_behavior_type_id),
+    pamolsa_behavior_id: coalesceBehaviorId(r.pamolsa_behavior_id),
+    risk: String(r.risk ?? ''),
+    risk_level: mapRiskLevel(r.risk_level),
+    photos_url: Array.isArray(photos) ? photos.filter((u): u is string => typeof u === 'string') : [],
+    details: nested.map(mapDetailSub),
+  };
+}
 
 const REGISTER_TYPES: VirtualSelectItem[] = [
   { id: 'Prevencion de Incendios', name: 'Prevencion de Incendios' },
@@ -38,6 +85,8 @@ const TYPE_FUENTE: VirtualSelectItem[] = [
 
 export function PamolsaActionForm() {
   const navigation = useNavigation<Nav>();
+  const route = useRoute<PamolsaFormRoute>();
+  const hydratedHeaderIdRef = useRef<number | null>(null);
 
   const nowIso = useMemo(() => new Date().toISOString(), []);
 
@@ -73,6 +122,67 @@ export function PamolsaActionForm() {
   const [responsableDate] = useState<string>(nowIso);
   const [responsableSignUrl, setResponsableSignUrl] = useState<string>((userService.user as any)?.signature_url ?? '');
   const [signatureFlag] = useState<boolean>(Boolean((userService.user as any)?.signature_url));
+
+  useEffect(() => {
+    const actionHeaderId = route.params?.actionHeaderId;
+    if (actionHeaderId == null) {
+      return;
+    }
+    if (hydratedHeaderIdRef.current === actionHeaderId) {
+      return;
+    }
+    const list = formService.actions_header as PamolsaActionHeaderListItem[];
+    const row = list.find((h) => h.id === actionHeaderId);
+    if (!row) {
+      alertService.present(
+        'Hallazgo SST',
+        'No se encontró el registro. Vuelva a la lista de inspecciones e intente de nuevo.',
+      );
+      return;
+    }
+    hydratedHeaderIdRef.current = actionHeaderId;
+    if (row.register_type) {
+      setRegisterType(String(row.register_type));
+    }
+    if (row.registered_date) {
+      const d = new Date(String(row.registered_date));
+      if (!Number.isNaN(d.getTime())) {
+        setRegisteredDate(d);
+      }
+    }
+    if (row.type) {
+      setTypeFuente(String(row.type));
+    }
+    if (row.inspection_id != null) {
+      setInspectionId(row.inspection_id);
+    }
+    if (row.local_id != null) {
+      setLocalId(row.local_id);
+    }
+    if (row.area_id != null) {
+      setAreaId(row.area_id);
+    }
+    if (row.area_responsable_id != null) {
+      setAreaResponsableId(row.area_responsable_id);
+    }
+    if (row.inspection_result) {
+      setInspectionResult(String(row.inspection_result));
+    }
+    if (row.charge_responsable) {
+      setChargeResponsable(String(row.charge_responsable));
+    }
+    if (row.responsable_sign_url != null && String(row.responsable_sign_url).length > 0) {
+      setResponsableSignUrl(String(row.responsable_sign_url));
+    }
+    const rawDetails = row.details;
+    if (Array.isArray(rawDetails)) {
+      setDetails(rawDetails.map(mapDetailRow1));
+    }
+    const si = route.params?.initialSlideIndex;
+    if (typeof si === 'number' && si >= 0 && si <= 2) {
+      setSlideIndex(si as 0 | 1 | 2);
+    }
+  }, [route.params?.actionHeaderId, route.params?.initialSlideIndex]);
 
   const locals = useMemo(() => {
     const raw = (formService.locals as { id: number | string; name: string }[]) ?? [];

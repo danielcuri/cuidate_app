@@ -1,5 +1,5 @@
 import moment from 'moment-timezone';
-import type { FormDesign, Forms } from '../../../interfaces/forms';
+import type { FormDesign, Forms, FormRecordDatum, FormsRecords } from '../../../interfaces/forms';
 
 export type FormDataShape = {
   id: string;
@@ -160,6 +160,247 @@ export function buildDbArrays(form: Forms): Record<number, unknown[]> {
 export function searchFormInList(forms: unknown[], formId: number): Forms | undefined {
   const f = (forms as Forms[]).find((form) => form.id === formId);
   return f;
+}
+
+type ListProps = {
+  database_flag?: number | boolean;
+  database_id?: string | number | null;
+  searchable?: boolean;
+  list_type?: string;
+};
+
+function listPropsOf(el: FormDesign): ListProps | undefined {
+  return el.properties?.list_properties as ListProps | undefined;
+}
+
+function searchFormDatum(
+  formDataRows: FormRecordDatum[] | undefined,
+  formElementId: number
+): FormRecordDatum | undefined {
+  if (!formDataRows?.length) {
+    return undefined;
+  }
+  return formDataRows.find((r) => r.form_element_id === formElementId);
+}
+
+function parsePhotosValue(v: unknown): string[] {
+  if (Array.isArray(v)) {
+    return v as string[];
+  }
+  if (typeof v === 'string' && v.length > 0) {
+    try {
+      const p = JSON.parse(v) as unknown;
+      if (Array.isArray(p)) {
+        return p as string[];
+      }
+    } catch {
+      return [v];
+    }
+  }
+  return [];
+}
+
+function coerceSwitchValue(v: unknown): boolean {
+  if (v === true || v === 1) {
+    return true;
+  }
+  if (v === false || v === 0) {
+    return false;
+  }
+  if (typeof v === 'string') {
+    const s = v.toLowerCase();
+    return s === '1' || s === 'true' || s === 'yes';
+  }
+  return false;
+}
+
+/**
+ * Paridad `initValuesRecord` en `canvas-form.page.ts` (Ionic): rellena `fields` y `form_data_ids`
+ * desde `record.form_data` al abrir un registro enviado (`form_data_index` / `formRecordId`).
+ */
+export function hydrateFormDataFromRecord(
+  form: Forms,
+  record: FormsRecords,
+  ctx: UserCtx
+): FormDataShape {
+  const formDataRows = Array.isArray(record.form_data)
+    ? (record.form_data as FormRecordDatum[])
+    : [];
+
+  const fields: Record<number, unknown> = {};
+  const form_data_ids: Record<number, unknown> = {};
+
+  for (const section of form.form_sections ?? []) {
+    for (const element of section.list) {
+      const data = searchFormDatum(formDataRows, element.id);
+      const ft = element.field_type_id;
+      const lp = listPropsOf(element);
+
+      form_data_ids[element.id] = data != null ? data.id : null;
+
+      if (ft === 9) {
+        fields[element.id] = data != null ? coerceSwitchValue(data.value) : false;
+        continue;
+      }
+
+      if (ft === 16) {
+        fields[element.id] =
+          data != null && data.value != null && data.value !== ''
+            ? parsePhotosValue(data.value)
+            : [];
+        continue;
+      }
+
+      if (
+        ft < 4 ||
+        ft === 5 ||
+        ft === 6 ||
+        ft === 7 ||
+        ft === 8 ||
+        ft === 11
+      ) {
+        fields[element.id] = data != null ? data.value : '';
+        continue;
+      }
+
+      if (ft === 10 || ft === 12) {
+        if (data != null && data.value) {
+          fields[element.id] = moment(String(data.value)).toISOString();
+        } else {
+          fields[element.id] = '';
+        }
+        continue;
+      }
+
+      if (ft === 13) {
+        fields[element.id] = [];
+        if (data != null) {
+          const tableMeta: { id: number | string; fields: Record<number, unknown>[] } = {
+            id: data.id,
+            fields: [],
+          };
+          form_data_ids[element.id] = tableMeta;
+          const rawRows = data.data;
+          if (Array.isArray(rawRows)) {
+            for (const dataElement of rawRows) {
+              if (!Array.isArray(dataElement)) {
+                continue;
+              }
+              const aux: Record<number, unknown> = {};
+              const auxIds: Record<number, unknown> = {};
+              for (const cell of dataElement) {
+                if (!cell || typeof cell !== 'object') {
+                  continue;
+                }
+                const c = cell as Record<string, unknown>;
+                const feId =
+                  typeof c.form_element_id === 'number'
+                    ? c.form_element_id
+                    : (c.form_element as { id?: number } | undefined)?.id;
+                if (feId == null) {
+                  continue;
+                }
+                aux[feId] = c.value;
+                auxIds[feId] = c.id;
+              }
+              (fields[element.id] as unknown[]).push(aux);
+              tableMeta.fields.push(auxIds);
+            }
+          }
+        } else {
+          form_data_ids[element.id] = { id: '', fields: [] };
+        }
+        continue;
+      }
+
+      if (ft === 14) {
+        fields[element.id] = data != null ? data.value : ctx.name;
+        continue;
+      }
+
+      if (ft === 15) {
+        fields[element.id] =
+          data?.value != null && data.value !== ''
+            ? data.value
+            : ctx.signatureUrl;
+        continue;
+      }
+
+      if (ft === 4 && lp) {
+        if (data != null) {
+          const dbf = lp.database_flag && lp.database_id != null && String(lp.database_id) !== '';
+          if (dbf) {
+            let v: unknown = data.value;
+            if (lp.searchable && typeof data.value === 'string') {
+              try {
+                v = JSON.parse(data.value) as unknown;
+              } catch {
+                v = data.value;
+              }
+            }
+            fields[element.id] = v;
+          } else if (!lp.searchable) {
+            if (typeof data.value === 'string') {
+              try {
+                fields[element.id] = JSON.parse(data.value) as unknown;
+              } catch {
+                fields[element.id] = data.value;
+              }
+            } else {
+              fields[element.id] = data.value;
+            }
+          } else {
+            if (typeof data.value === 'string') {
+              try {
+                fields[element.id] = JSON.parse(data.value) as unknown;
+              } catch {
+                fields[element.id] = data.value;
+              }
+            } else {
+              fields[element.id] = data.value;
+            }
+          }
+        } else if (lp.database_flag && lp.database_id != null && String(lp.database_id) !== '') {
+          fields[element.id] = '';
+        } else {
+          fields[element.id] = lp.list_type === '2' ? [] : '';
+        }
+        continue;
+      }
+
+      fields[element.id] = data != null ? data.value : '';
+    }
+  }
+
+  const statusRaw = record.status;
+  const statusNum =
+    statusRaw === undefined || statusRaw === null ? 0 : Number(statusRaw);
+  const uid = record.user?.id != null ? record.user.id : Number(ctx.id);
+
+  return {
+    id: String(record.id),
+    form_id: String(form.id),
+    user_id: uid,
+    fields,
+    form_data_ids,
+    rows_deleted: [],
+    status: Number.isNaN(statusNum) ? 0 : statusNum,
+    name: record.form?.name as string | undefined,
+    created: record.created ?? record.created_at,
+  };
+}
+
+/** Busca el registro en memoria (servicio + store), como `fs.forms_records` en Ionic. */
+export function findFormsRecordById(
+  recordId: number,
+  serviceRecords: unknown,
+  storeRecords: FormsRecords[]
+): FormsRecords | undefined {
+  const fromService = (serviceRecords as FormsRecords[]).find((r) => r.id === recordId);
+  if (fromService) {
+    return fromService;
+  }
+  return storeRecords.find((r) => r.id === recordId);
 }
 
 /** Paridad `checkCurrentField` (validación por tipo). */
