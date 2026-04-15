@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Image,
   Modal,
@@ -29,10 +29,14 @@ export type PamolsaActionDetailRowType2 = {
 
 export type PamolsaActionDetailRowType1 = {
   id?: number;
+  /** Paridad Ionic / `Endpoint.md`: aprobación a nivel de fila de detalle. */
+  approved?: number;
   findings: string;
   pamolsa_behavior_type_id: string | number;
   pamolsa_behavior_id: string | number;
   risk: string;
+  /** Ya no se captura en UI; se envía siempre `''` por compatibilidad con el payload. */
+  consequence: string;
   risk_level: 'Alto' | 'Medio' | 'Bajo' | '';
   photos_url: string[];
   details: PamolsaActionDetailRowType2[];
@@ -43,6 +47,8 @@ type Props = {
   title: string;
   type: DetailType;
   restart?: number;
+  /** Paridad Ionic `pamolsa-action-form`: modo lista / edición desde registro existente. */
+  visualize?: boolean;
   currentItem: PamolsaActionDetailRowType1 | PamolsaActionDetailRowType2 | null;
   behaviorsTypes: { id: number | string; name: string; behaviors: { id: number | string; name: string }[] }[];
   areaResponsableId?: string | number;
@@ -65,11 +71,128 @@ function addDaysIso(baseIso: string | null, days: number) {
   return t.toISOString();
 }
 
+/** Fila anidada `details[]` dentro de un detalle (ver `docs/Endpoint.md`). */
+function mapDetailSubFromApi(raw: unknown): PamolsaActionDetailRowType2 {
+  const r = raw as Record<string, unknown>;
+  const pd = r.proposed_date;
+  let proposedDate = '';
+  if (pd != null && pd !== '') {
+    proposedDate = typeof pd === 'string' ? pd : String(pd);
+  }
+  return {
+    id: typeof r.id === 'number' ? r.id : undefined,
+    proposed_actions: String(r.proposed_actions ?? ''),
+    area_responsable: typeof r.area_responsable === 'string' ? r.area_responsable : undefined,
+    area_responsable_id: r.area_responsable_id as string | number | undefined,
+    proposed_date: proposedDate || new Date().toISOString(),
+    approved: typeof r.approved === 'number' ? r.approved : undefined,
+  };
+}
+
+function normalizeTwoPhotoSlots(urls: string[]): [string, string] {
+  const a = urls.slice(0, 2);
+  return [a[0] ?? '', a[1] ?? ''];
+}
+
+function buildRow1FromProps(
+  type: DetailType,
+  currentItem: PamolsaActionDetailRowType1 | PamolsaActionDetailRowType2 | null,
+): PamolsaActionDetailRowType1 {
+  if (type !== 1) {
+    return {
+      findings: '',
+      pamolsa_behavior_type_id: '',
+      pamolsa_behavior_id: '',
+      risk: '',
+      consequence: '',
+      risk_level: '',
+      photos_url: ['', ''],
+      details: [],
+    };
+  }
+  if (currentItem != null && 'findings' in currentItem) {
+    const ci = currentItem as PamolsaActionDetailRowType1;
+    const rl = ci.risk_level;
+    const riskLevel: PamolsaActionDetailRowType1['risk_level'] =
+      rl === 'Alto' || rl === 'Medio' || rl === 'Bajo' ? rl : '';
+    const rawP = Array.isArray(ci.photos_url) ? ci.photos_url.filter((u): u is string => typeof u === 'string') : [];
+    const photos_url = normalizeTwoPhotoSlots(rawP);
+    const detailsList = Array.isArray(ci.details) ? ci.details.map(mapDetailSubFromApi) : [];
+    return {
+      id: ci.id,
+      approved: typeof ci.approved === 'number' ? ci.approved : undefined,
+      findings: ci.findings ?? '',
+      pamolsa_behavior_type_id: ci.pamolsa_behavior_type_id ?? '',
+      pamolsa_behavior_id: ci.pamolsa_behavior_id ?? '',
+      risk: ci.risk ?? '',
+      consequence: '',
+      risk_level: riskLevel,
+      photos_url,
+      details: detailsList,
+    };
+  }
+  return {
+    findings: '',
+    pamolsa_behavior_type_id: '',
+    pamolsa_behavior_id: '',
+    risk: '',
+    consequence: '',
+    risk_level: '',
+    photos_url: ['', ''],
+    details: [],
+  };
+}
+
+function buildRow2FromProps(
+  type: DetailType,
+  currentItem: PamolsaActionDetailRowType1 | PamolsaActionDetailRowType2 | null,
+  areaResponsable: string | undefined,
+  areaResponsableId: string | number | undefined,
+  proposedDateSeed: string | undefined,
+): PamolsaActionDetailRowType2 {
+  if (type !== 2) {
+    return { proposed_actions: '', proposed_date: proposedDateSeed ?? new Date().toISOString() };
+  }
+  if (currentItem != null && 'proposed_actions' in currentItem) {
+    const ci = currentItem as PamolsaActionDetailRowType2;
+    return {
+      id: ci.id,
+      proposed_actions: ci.proposed_actions ?? '',
+      proposed_date: ci.proposed_date ?? proposedDateSeed ?? new Date().toISOString(),
+      area_responsable: ci.area_responsable ?? areaResponsable ?? '',
+      area_responsable_id: ci.area_responsable_id ?? areaResponsableId,
+      approved: ci.approved,
+    };
+  }
+  return {
+    proposed_actions: '',
+    proposed_date: proposedDateSeed ?? new Date().toISOString(),
+    area_responsable: areaResponsable ?? '',
+    area_responsable_id: areaResponsableId,
+  };
+}
+
+/** Paridad `pamolsa-action-form-detail.page.html` (botón «Añadir registro» en tabla anidada). */
+function canAddNestedDetailRow(opts: {
+  visualize: boolean;
+  rowApproved: number | undefined;
+  restart: number;
+}): boolean {
+  const { visualize, rowApproved, restart } = opts;
+  const ap = Number(rowApproved ?? 0);
+  const r = Number(restart ?? 0);
+  return (
+    (!visualize && ap !== 1) ||
+    (ap === 1 && r === 1)
+  );
+}
+
 export function PamolsaActionFormDetailModal({
   visible,
   title,
   type,
   restart = 0,
+  visualize = false,
   currentItem,
   behaviorsTypes,
   areaResponsableId,
@@ -78,71 +201,48 @@ export function PamolsaActionFormDetailModal({
   onClose,
   onSave,
 }: Props) {
-  const readonly = restart === 1 && (currentItem as any)?.id != null;
+  const readonly =
+    restart === 1 &&
+    currentItem != null &&
+    'id' in currentItem &&
+    typeof (currentItem as { id?: number }).id === 'number';
 
   const [openTypeSelect, setOpenTypeSelect] = useState(false);
   const [openBehaviorSelect, setOpenBehaviorSelect] = useState(false);
   const [showDate, setShowDate] = useState(false);
   const [editPhoto, setEditPhoto] = useState<number | null>(null);
 
-  const [row1, setRow1] = useState<PamolsaActionDetailRowType1>(() => {
-    if (type !== 1) {
-      return {
-        findings: '',
-        pamolsa_behavior_type_id: '',
-        pamolsa_behavior_id: '',
-        risk: '',
-        risk_level: '',
-        photos_url: ['', ''],
-        details: [],
-      };
-    }
-    if (currentItem && (currentItem as any).findings != null) {
-      const ci = currentItem as PamolsaActionDetailRowType1;
-      return {
-        id: ci.id,
-        findings: ci.findings ?? '',
-        pamolsa_behavior_type_id: ci.pamolsa_behavior_type_id ?? '',
-        pamolsa_behavior_id: ci.pamolsa_behavior_id ?? '',
-        risk: ci.risk ?? '',
-        risk_level: (ci.risk_level ?? '') as any,
-        photos_url: Array.isArray(ci.photos_url) && ci.photos_url.length ? ci.photos_url.slice(0, 2) : ['', ''],
-        details: Array.isArray(ci.details) ? ci.details : [],
-      };
-    }
-    return {
-      findings: '',
-      pamolsa_behavior_type_id: '',
-      pamolsa_behavior_id: '',
-      risk: '',
-      risk_level: '',
-      photos_url: ['', ''],
-      details: [],
-    };
-  });
+  const [row1, setRow1] = useState<PamolsaActionDetailRowType1>(() => buildRow1FromProps(type, currentItem));
 
-  const [row2, setRow2] = useState<PamolsaActionDetailRowType2>(() => {
-    if (type !== 2) {
-      return { proposed_actions: '', proposed_date: proposedDateSeed ?? new Date().toISOString() };
+  const [row2, setRow2] = useState<PamolsaActionDetailRowType2>(() =>
+    buildRow2FromProps(type, currentItem, areaResponsable, areaResponsableId, proposedDateSeed),
+  );
+
+  /** Al abrir el modal o cambiar la fila, volver a hidratar (useState solo corre en el primer montaje). */
+  useEffect(() => {
+    if (!visible) {
+      return;
     }
-    if (currentItem && (currentItem as any).proposed_actions != null) {
-      const ci = currentItem as PamolsaActionDetailRowType2;
-      return {
-        id: ci.id,
-        proposed_actions: ci.proposed_actions ?? '',
-        proposed_date: ci.proposed_date ?? proposedDateSeed ?? new Date().toISOString(),
-        area_responsable: ci.area_responsable ?? areaResponsable ?? '',
-        area_responsable_id: ci.area_responsable_id ?? areaResponsableId,
-        approved: ci.approved,
-      };
+    if (type === 1) {
+      setRow1(buildRow1FromProps(type, currentItem));
+      setNested({ open: false, index: -1, current: null, seed: new Date().toISOString() });
+      setEditPhoto(null);
+      setOpenTypeSelect(false);
+      setOpenBehaviorSelect(false);
+      return;
     }
-    return {
-      proposed_actions: '',
-      proposed_date: proposedDateSeed ?? new Date().toISOString(),
-      area_responsable: areaResponsable ?? '',
-      area_responsable_id: areaResponsableId,
-    };
-  });
+    if (type === 2) {
+      setRow2(buildRow2FromProps(type, currentItem, areaResponsable, areaResponsableId, proposedDateSeed));
+      setShowDate(false);
+    }
+  }, [
+    visible,
+    type,
+    currentItem,
+    areaResponsable,
+    areaResponsableId,
+    proposedDateSeed,
+  ]);
 
   const typeItems = useMemo(
     () => behaviorsTypes.map((bt) => ({ id: bt.id, name: bt.name })) as VirtualSelectItem[],
@@ -188,6 +288,12 @@ export function PamolsaActionFormDetailModal({
     seed: string;
   }>({ open: false, index: -1, current: null, seed: new Date().toISOString() });
 
+  const canAddNestedRows = canAddNestedDetailRow({
+    visualize,
+    rowApproved: row1.approved,
+    restart,
+  });
+
   const validate = () => {
     if (type === 1) {
       if (!row1.findings.trim()) return 'Complete Hallazgos y/o observaciones.';
@@ -210,7 +316,7 @@ export function PamolsaActionFormDetailModal({
       alertService.present('Validación', err);
       return;
     }
-    onSave(type === 1 ? row1 : row2);
+    onSave(type === 1 ? { ...row1, consequence: '' } : row2);
     onClose();
   };
 
@@ -243,7 +349,7 @@ export function PamolsaActionFormDetailModal({
                 multiline
               />
 
-              <Text style={styles.label}>Tipo de Hallazgo</Text>
+              <Text style={styles.label}>Comportamiento o condición</Text>
               <TouchableOpacity style={styles.field} onPress={() => !readonly && setOpenTypeSelect(true)} disabled={readonly}>
                 <Text style={styles.fieldTxt}>
                   {typeItems.find((x) => String(x.id) === String(row1.pamolsa_behavior_type_id))?.name ?? 'Seleccionar'}
@@ -306,13 +412,11 @@ export function PamolsaActionFormDetailModal({
                 ))}
               </View>
 
-              <Text style={styles.section}>Tabla de detalle</Text>
+              <Text style={styles.section}>Acciones propuestas</Text>
               {row1.details.map((d, idx) => (
                 <View key={`${idx}-${d.id ?? 'new'}`} style={styles.tableRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.tableTitle} numberOfLines={2}>
-                      {d.proposed_actions || '—'}
-                    </Text>
+                    <Text style={styles.tableTitle}>{d.proposed_actions || '—'}</Text>
                     <Text style={styles.tableMeta} numberOfLines={1}>
                       {d.proposed_date ? new Date(d.proposed_date).toLocaleDateString() : '—'}
                     </Text>
@@ -324,7 +428,7 @@ export function PamolsaActionFormDetailModal({
                   >
                     <Text style={styles.smallBtnTxt}>Editar</Text>
                   </TouchableOpacity>
-                  {!readonly && !d.id ? (
+                  {!visualize && !d.id ? (
                     <TouchableOpacity
                       style={[styles.smallBtn, styles.smallBtnDanger]}
                       onPress={() => setRow1((p) => ({ ...p, details: p.details.filter((_, i) => i !== idx) }))}
@@ -334,7 +438,7 @@ export function PamolsaActionFormDetailModal({
                   ) : null}
                 </View>
               ))}
-              {!readonly ? (
+              {canAddNestedRows ? (
                 <TouchableOpacity style={styles.addBtn} onPress={() => addOrEditType2(-1)}>
                   <Text style={styles.addBtnTxt}>Añadir registro</Text>
                 </TouchableOpacity>
@@ -382,7 +486,7 @@ export function PamolsaActionFormDetailModal({
 
         <VirtualSelect
           visible={openTypeSelect}
-          title="Tipo de Hallazgo"
+          title="Comportamiento o condición"
           items={typeItems}
           selectedIds={row1.pamolsa_behavior_type_id ? [row1.pamolsa_behavior_type_id] : []}
           onClose={() => setOpenTypeSelect(false)}
@@ -423,6 +527,7 @@ export function PamolsaActionFormDetailModal({
           title="Acciones propuestas"
           type={2}
           restart={restart}
+          visualize={visualize}
           currentItem={nested.current}
           behaviorsTypes={behaviorsTypes}
           areaResponsableId={areaResponsableId}

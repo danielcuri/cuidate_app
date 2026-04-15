@@ -67,13 +67,13 @@ const MENU_PAMOLSA: Entry[] = [
     },
     {
         key: "actions",
-        label: "Seguimiento",
+        label: "Seguimiento de acciones propuestas",
         icon: "list-outline",
         route: "Actions",
     },
     {
         key: "effectiveness",
-        label: "Eficacia",
+        label: "Eficacia de acciones ejecutadas",
         icon: "stats-chart-outline",
         route: "Effectiveness",
     },

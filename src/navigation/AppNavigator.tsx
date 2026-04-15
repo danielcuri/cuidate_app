@@ -95,12 +95,12 @@ export function AppNavigator() {
           <Root.Screen
             name="CreateEffectiveness"
             component={CreateEffectiveness}
-            options={{ ...headerOpts, title: 'Eficacia' }}
+            options={{ headerShown: false }}
           />
           <Root.Screen
             name="Effectiveness"
             component={Effectiveness}
-            options={{ ...headerOpts, title: 'Efectividad' }}
+            options={{ headerShown: false }}
           />
           <Root.Screen
             name="Actions"

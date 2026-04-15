@@ -1,5 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -7,6 +15,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { COLORS } from '../../../theme/colors';
 import type { RootStackParamList } from '../../../navigation/AppNavigator';
 import type { PamolsaActionHeaderListItem } from '../../../interfaces/forms';
+import type { User as SessionUser } from '../../../interfaces/login';
 import { formService } from '../../../services/FormService';
 import { loadingService } from '../../../services/LoadingService';
 import { queryService } from '../../../services/QueryService';
@@ -23,6 +32,10 @@ import {
 type Nav = StackNavigationProp<RootStackParamList, 'PamolsaActionForm'>;
 type PamolsaFormRoute = RouteProp<RootStackParamList, 'PamolsaActionForm'>;
 
+type SlideIx = 0 | 1 | 2 | 3;
+
+type PamolsaInspection = { id: number | string; name: string; type?: string };
+
 function mapRiskLevel(v: unknown): PamolsaActionDetailRowType1['risk_level'] {
   if (v === 'Alto' || v === 'Medio' || v === 'Bajo') return v;
   return '';
@@ -30,12 +43,17 @@ function mapRiskLevel(v: unknown): PamolsaActionDetailRowType1['risk_level'] {
 
 function mapDetailSub(raw: unknown): PamolsaActionDetailRowType2 {
   const r = raw as Record<string, unknown>;
+  const pd = r.proposed_date;
+  let proposedDate = '';
+  if (pd != null && pd !== '') {
+    proposedDate = typeof pd === 'string' ? pd : String(pd);
+  }
   return {
     id: typeof r.id === 'number' ? r.id : undefined,
     proposed_actions: String(r.proposed_actions ?? ''),
     area_responsable: typeof r.area_responsable === 'string' ? r.area_responsable : undefined,
     area_responsable_id: r.area_responsable_id as string | number | undefined,
-    proposed_date: String(r.proposed_date ?? ''),
+    proposed_date: proposedDate || new Date().toISOString(),
     approved: typeof r.approved === 'number' ? r.approved : undefined,
   };
 }
@@ -51,18 +69,48 @@ function mapDetailRow1(raw: unknown): PamolsaActionDetailRowType1 {
   const r = raw as Record<string, unknown>;
   const photos = r.photos_url;
   const nested = Array.isArray(r.details) ? r.details : [];
+  const photoList = Array.isArray(photos) ? photos.filter((u): u is string => typeof u === 'string') : [];
+  const photos_url: [string, string] = [photoList[0] ?? '', photoList[1] ?? ''];
   return {
     id: typeof r.id === 'number' ? r.id : undefined,
+    approved: typeof r.approved === 'number' ? r.approved : undefined,
     findings: String(r.findings ?? ''),
     pamolsa_behavior_type_id: coalesceBehaviorId(r.pamolsa_behavior_type_id),
     pamolsa_behavior_id: coalesceBehaviorId(r.pamolsa_behavior_id),
     risk: String(r.risk ?? ''),
+    consequence: '',
     risk_level: mapRiskLevel(r.risk_level),
-    photos_url: Array.isArray(photos) ? photos.filter((u): u is string => typeof u === 'string') : [],
+    photos_url,
     details: nested.map(mapDetailSub),
   };
 }
 
+/** Paridad `checkHasNewRecord` + `slider_limit` (Ionic). */
+function pamolsaSliderState(
+  recordId: number | undefined,
+  details: PamolsaActionDetailRowType1[],
+  approved: number,
+  restart: number,
+): { hasNew: boolean; sliderLimit: 3 | 4 } {
+  if (recordId == null) {
+    return { hasNew: false, sliderLimit: 3 };
+  }
+  const childrenNew = details.filter((e) => e.id === undefined);
+  let hasNew = childrenNew.length > 0;
+  if (hasNew) {
+    return { hasNew: true, sliderLimit: 4 };
+  }
+  // Paridad Ionic: `approved` puede ser 0 (pendiente) o 3 (observado) y aún requiere slide de aprobación.
+  if ((approved === 0 || approved === 3) && restart === 0) {
+    return { hasNew: true, sliderLimit: 4 };
+  }
+  if (restart === 1 && (approved === 0 || approved === 3)) {
+    return { hasNew: true, sliderLimit: 4 };
+  }
+  return { hasNew, sliderLimit: 3 };
+}
+
+// Paridad `pamolsa-action-form.page.html` (ion-radio-group register_type).
 const REGISTER_TYPES: VirtualSelectItem[] = [
   { id: 'Prevencion de Incendios', name: 'Prevencion de Incendios' },
   { id: 'Seguridad Industrial', name: 'Seguridad Industrial' },
@@ -83,6 +131,15 @@ const TYPE_FUENTE: VirtualSelectItem[] = [
   { id: 'Seguridad Patrimonial', name: 'Seguridad Patrimonial' },
 ];
 
+function sessionUser(): SessionUser {
+  return userService.user as SessionUser;
+}
+
+function hasRole98(): boolean {
+  const roles = sessionUser().roles ?? [];
+  return roles.indexOf('98') > -1;
+}
+
 export function PamolsaActionForm() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<PamolsaFormRoute>();
@@ -90,9 +147,13 @@ export function PamolsaActionForm() {
 
   const nowIso = useMemo(() => new Date().toISOString(), []);
 
-  const [slideIndex, setSlideIndex] = useState<0 | 1 | 2>(0);
+  const [slideIndex, setSlideIndex] = useState<SlideIx>(0);
 
-  // Slide 1 (Sección 1)
+  const [recordId, setRecordId] = useState<number | undefined>(undefined);
+  const [visualize, setVisualize] = useState(false);
+  const [approved, setApproved] = useState(0);
+  const [restart, setRestart] = useState(0);
+
   const [registerType, setRegisterType] = useState<string>('');
   const [registeredDate, setRegisteredDate] = useState<Date>(new Date());
   const [showRegisteredPicker, setShowRegisteredPicker] = useState(false);
@@ -101,7 +162,8 @@ export function PamolsaActionForm() {
   const [localId, setLocalId] = useState<string | number | ''>('');
   const [areaId, setAreaId] = useState<string | number | ''>('');
   const [areaResponsableId, setAreaResponsableId] = useState<string | number | ''>('');
-  const [inspectionResponsable] = useState<string>(userService.user.name ?? '');
+  const [inspectionResponsable, setInspectionResponsable] = useState<string>(sessionUser().name ?? '');
+  const [registerResponsable, setRegisterResponsable] = useState<string>(sessionUser().name ?? '');
 
   const [openRegisterType, setOpenRegisterType] = useState(false);
   const [openTypeFuente, setOpenTypeFuente] = useState(false);
@@ -110,18 +172,33 @@ export function PamolsaActionForm() {
   const [openArea, setOpenArea] = useState(false);
   const [openAreaResp, setOpenAreaResp] = useState(false);
 
-  // Slide 2 (Detalle)
   const [details, setDetails] = useState<PamolsaActionDetailRowType1[]>([]);
   const [inspectionResult, setInspectionResult] = useState('');
+  const [causes, setCauses] = useState('');
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailIndex, setDetailIndex] = useState<number>(-1);
 
-  // Slide 3 (Responsable del registro + firma + enviar)
-  const [registerResponsable] = useState<string>(userService.user.name ?? '');
   const [chargeResponsable, setChargeResponsable] = useState('');
   const [responsableDate] = useState<string>(nowIso);
-  const [responsableSignUrl, setResponsableSignUrl] = useState<string>((userService.user as any)?.signature_url ?? '');
-  const [signatureFlag] = useState<boolean>(Boolean((userService.user as any)?.signature_url));
+  const sig = sessionUser().signature_url;
+  const [responsableSignUrl, setResponsableSignUrl] = useState<string>(sig ?? '');
+  const [signatureFlag, setSignatureFlag] = useState<boolean>(Boolean(sig));
+
+  const { sliderLimit, hasNew } = useMemo(
+    () => pamolsaSliderState(recordId, details, approved, restart),
+    [recordId, details, approved, restart],
+  );
+
+  /** Etiquetas por paso (paridad Ionic: Sección 1 / Detalle / Responsable / Aprobación). */
+  const stepTitles = useMemo(() => {
+    const steps = ['Sección 1', 'Detalle', 'Responsable del registro'];
+    if (sliderLimit === 4) {
+      steps.push('Aprobación');
+    }
+    return steps;
+  }, [sliderLimit]);
+
+  const fieldsLocked = approved === 1;
 
   useEffect(() => {
     const actionHeaderId = route.params?.actionHeaderId;
@@ -141,6 +218,11 @@ export function PamolsaActionForm() {
       return;
     }
     hydratedHeaderIdRef.current = actionHeaderId;
+    setRecordId(row.id);
+    setVisualize(true);
+    setApproved(Number(row.approved ?? 0));
+    setRestart(Number(row.restart ?? 0));
+
     if (row.register_type) {
       setRegisterType(String(row.register_type));
     }
@@ -168,21 +250,52 @@ export function PamolsaActionForm() {
     if (row.inspection_result) {
       setInspectionResult(String(row.inspection_result));
     }
+    if (row.causes) {
+      setCauses(String(row.causes));
+    }
     if (row.charge_responsable) {
       setChargeResponsable(String(row.charge_responsable));
     }
     if (row.responsable_sign_url != null && String(row.responsable_sign_url).length > 0) {
       setResponsableSignUrl(String(row.responsable_sign_url));
+      setSignatureFlag(true);
     }
+    const u = row.user;
+    if (Number(row.approved ?? 0) === 3 && typeof row.comment === 'string' && row.comment) {
+      alertService.present('Observacion Presentada', String(row.comment));
+    }
+    const uname = u?.name ?? row.inspection_responsable ?? row.register_responsable ?? sessionUser().name ?? '';
+    setInspectionResponsable(uname);
+    setRegisterResponsable(row.register_responsable ?? u?.name ?? sessionUser().name ?? '');
+
     const rawDetails = row.details;
-    if (Array.isArray(rawDetails)) {
-      setDetails(rawDetails.map(mapDetailRow1));
-    }
+    const mapped = Array.isArray(rawDetails) ? rawDetails.map(mapDetailRow1) : [];
+    setDetails(mapped);
+
+    const { sliderLimit: lim } = pamolsaSliderState(row.id, mapped, Number(row.approved ?? 0), Number(row.restart ?? 0));
     const si = route.params?.initialSlideIndex;
-    if (typeof si === 'number' && si >= 0 && si <= 2) {
-      setSlideIndex(si as 0 | 1 | 2);
+    if (typeof si === 'number' && si >= 0) {
+      const max = lim - 1;
+      const clamped = Math.min(Math.max(0, si), max) as SlideIx;
+      setSlideIndex(clamped);
     }
   }, [route.params?.actionHeaderId, route.params?.initialSlideIndex]);
+
+  useEffect(() => {
+    const actionHeaderId = route.params?.actionHeaderId;
+    if (actionHeaderId != null) {
+      return;
+    }
+    setRegisterResponsable(sessionUser().name ?? '');
+    setInspectionResponsable(sessionUser().name ?? '');
+    if (sig) {
+      setSignatureFlag(true);
+      setResponsableSignUrl(sig);
+    } else {
+      setSignatureFlag(false);
+      setResponsableSignUrl('');
+    }
+  }, [route.params?.actionHeaderId, sig]);
 
   const locals = useMemo(() => {
     const raw = (formService.locals as { id: number | string; name: string }[]) ?? [];
@@ -190,12 +303,13 @@ export function PamolsaActionForm() {
   }, []);
 
   const currentLocal = useMemo(() => {
-    const loc = (formService.locals as any[])?.find((l) => String(l.id) === String(localId));
+    const loc = (formService.locals as Record<string, unknown>[])?.find((l) => String(l.id) === String(localId));
     return loc ?? null;
   }, [localId]);
 
   const areas = useMemo(() => {
-    const raw = (currentLocal?.areas as { id: number | string; name: string; users?: any[] }[]) ?? [];
+    const raw =
+      (currentLocal?.areas as { id: number | string; name: string; users?: unknown[] }[]) ?? [];
     return raw
       .slice()
       .sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? '')))
@@ -203,7 +317,7 @@ export function PamolsaActionForm() {
   }, [currentLocal]);
 
   const currentArea = useMemo(() => {
-    const a = (currentLocal?.areas as any[])?.find((x) => String(x.id) === String(areaId));
+    const a = (currentLocal?.areas as Record<string, unknown>[])?.find((x) => String(x.id) === String(areaId));
     return a ?? null;
   }, [currentLocal, areaId]);
 
@@ -216,20 +330,32 @@ export function PamolsaActionForm() {
   }, [currentArea]);
 
   const inspections = useMemo(() => {
-    const raw = (formService.inspections as { id: number | string; name: string; type?: string }[]) ?? [];
+    const raw = (formService.inspections as PamolsaInspection[]) ?? [];
     return raw.filter((x) => String(x.type ?? '') === String(typeFuente));
   }, [typeFuente]);
 
-  const inspectionItems = useMemo(() => inspections.map((x) => ({ id: x.id, name: x.name })) as VirtualSelectItem[], [inspections]);
-
-  const localName = useMemo(() => locals.find((l) => String(l.id) === String(localId))?.name ?? 'Seleccionar', [locals, localId]);
-  const areaName = useMemo(() => areas.find((a) => String(a.id) === String(areaId))?.name ?? 'Seleccionar', [areas, areaId]);
-  const areaRespName = useMemo(
-    () => areaResponsables.find((u) => String(u.id) === String(areaResponsableId))?.name ?? 'Seleccionar',
-    [areaResponsables, areaResponsableId]
+  const inspectionItems = useMemo(
+    () => inspections.map((x) => ({ id: x.id, name: x.name })) as VirtualSelectItem[],
+    [inspections],
   );
 
-  const validateSlide1 = () => {
+  const localName = useMemo(
+    () => locals.find((l) => String(l.id) === String(localId))?.name ?? 'Seleccionar',
+    [locals, localId],
+  );
+  const areaName = useMemo(
+    () => areas.find((a) => String(a.id) === String(areaId))?.name ?? 'Seleccionar',
+    [areas, areaId],
+  );
+  const areaRespName = useMemo(
+    () => areaResponsables.find((u) => String(u.id) === String(areaResponsableId))?.name ?? 'Seleccionar',
+    [areaResponsables, areaResponsableId],
+  );
+
+  const canAddDetailRow =
+    (!visualize && !(approved === 1)) || (approved === 1 && restart === 1 && !visualize);
+
+  const validateSlide0 = () => {
     if (!registerType) return 'Seleccione tipo de registro.';
     if (!typeFuente) return 'Seleccione Fuente.';
     if ((typeFuente === 'Inspeccion SST' || typeFuente === 'Eventos') && !inspectionId) return 'Seleccione Categoria.';
@@ -239,51 +365,90 @@ export function PamolsaActionForm() {
     return null;
   };
 
-  const validateSlide2 = () => {
+  const validateSlide1 = () => {
     if (!details.length) return 'Agregue al menos un registro en la tabla de detalle.';
-    if (!inspectionResult.trim()) return 'Complete "Hallazgo reportado a".';
+    if (!inspectionResult.trim()) return 'Complete resultado de la inspección.';
     return null;
   };
 
-  const validateSlide3 = () => {
+  const validateSlide2 = () => {
     if (!chargeResponsable.trim()) return 'Complete Cargo.';
     if (!responsableSignUrl) return 'Registre firma.';
     return null;
   };
 
+  const goNext = () => {
+    const err =
+      slideIndex === 0 ? validateSlide0() : slideIndex === 1 ? validateSlide1() : validateSlide2();
+    if (err) {
+      alertService.present('Hallazgo SST', err);
+      return;
+    }
+    if (slideIndex < sliderLimit - 1) {
+      setSlideIndex((s) => (s + 1) as SlideIx);
+    }
+  };
+
   const submit = async () => {
-    const err = validateSlide3();
-    if (err) return alertService.present('Hallazgo SST', err);
+    if (sliderLimit === 4 && slideIndex === 3) {
+      await sendPayload();
+      return;
+    }
+    const err = validateSlide2();
+    if (err) {
+      alertService.present('Hallazgo SST', err);
+      return;
+    }
+    await sendPayload();
+  };
+
+  const sendPayload = async () => {
     await loadingService.present();
     try {
-      const res = (await formService.saveDataPamolsaAction({
+        const payload: Record<string, unknown> = {
         register_type: registerType,
         registered_date: registeredDate.toISOString(),
         responsable_sign_url: responsableSignUrl,
         type: typeFuente,
-        inspection_id: inspectionId,
+        inspection_id:
+          typeFuente === 'Inspeccion SST' || typeFuente === 'Eventos'
+            ? inspectionId === '' || inspectionId == null
+              ? null
+              : inspectionId
+            : null,
+        others_type: null,
         local_id: localId,
         area_id: areaId,
         area_responsable_id: areaResponsableId,
+        area_responsable: areaRespName,
         inspection_responsable: inspectionResponsable,
         inspection_result: inspectionResult,
+        causes: causes.trim() !== '' ? causes : null,
         register_responsable: registerResponsable,
         charge_responsable: chargeResponsable,
         responsable_date: responsableDate,
         details,
-      })) as { error?: boolean; msg?: string; data?: { id?: number }; id?: number };
+      };
+      if (recordId != null) {
+        payload.id = recordId;
+        payload.approved = approved;
+        payload.restart = restart;
+      }
+
+      const res = (await formService.saveDataPamolsaAction(payload)) as {
+        error?: boolean;
+        msg?: string;
+        data?: { id?: number };
+        id?: number;
+      };
 
       if (res?.error) {
         queryService.manageErrors(res);
         return;
       }
 
-      const actionId = res?.data?.id ?? res?.id;
-      if (!actionId) {
-        alertService.present('Hallazgo SST', 'Se guardó, pero no se recibió el ID.');
-        return;
-      }
-      navigation.navigate('PamolsaActionFormDetail', { actionId: Number(actionId) });
+      alertService.present('OK', 'Registro envíado correctamente');
+      navigation.navigate('ListPamolsa');
     } catch (e) {
       console.log(e);
       alertService.present('Error', 'No se pudo guardar el hallazgo.');
@@ -292,29 +457,53 @@ export function PamolsaActionForm() {
     }
   };
 
+  const role98 = hasRole98();
+
   return (
     <View style={styles.page}>
+      <View style={styles.headerBar}>
+        <Text style={styles.headerTitle}>Creación de acción</Text>
+      </View>
       <ScrollView contentContainerStyle={styles.body}>
-        <View style={styles.bullets}>
-          {[0, 1, 2].map((i) => (
-            <View key={i} style={[styles.bullet, slideIndex === i ? styles.bulletOn : null]} />
+        <View style={styles.stepIndicator}>
+          {stepTitles.map((label, i) => (
+            <View key={`${label}-${i}`} style={styles.stepItem}>
+              <View style={[styles.bullet, slideIndex === i ? styles.bulletOn : null]} />
+              <Text
+                style={[styles.stepLabel, slideIndex === i ? styles.stepLabelActive : null]}
+                numberOfLines={2}
+              >
+                {label}
+              </Text>
+            </View>
           ))}
         </View>
+     
 
         {slideIndex === 0 ? (
           <>
-            <Text style={styles.section}>Sección 1</Text>
+          
 
             <Text style={styles.label}>Tipo</Text>
-            <TouchableOpacity style={styles.field} onPress={() => setOpenRegisterType(true)} activeOpacity={0.88}>
+            <TouchableOpacity
+              style={[styles.field, fieldsLocked && styles.fieldDisabled]}
+              onPress={() => !fieldsLocked && setOpenRegisterType(true)}
+              activeOpacity={0.88}
+              disabled={fieldsLocked}
+            >
               <Text style={styles.fieldTxt}>{registerType || 'Seleccionar'}</Text>
             </TouchableOpacity>
 
             <Text style={styles.label}>Fecha y hora</Text>
-            <TouchableOpacity style={styles.field} onPress={() => setShowRegisteredPicker(true)} activeOpacity={0.88}>
+            <TouchableOpacity
+              style={[styles.field, fieldsLocked && styles.fieldDisabled]}
+              onPress={() => !fieldsLocked && setShowRegisteredPicker(true)}
+              activeOpacity={0.88}
+              disabled={fieldsLocked}
+            >
               <Text style={styles.fieldTxt}>{registeredDate.toLocaleString()}</Text>
             </TouchableOpacity>
-            {showRegisteredPicker ? (
+            {showRegisteredPicker && !fieldsLocked ? (
               <DateTimePicker
                 value={registeredDate}
                 mode="datetime"
@@ -327,14 +516,24 @@ export function PamolsaActionForm() {
             ) : null}
 
             <Text style={styles.label}>Fuente</Text>
-            <TouchableOpacity style={styles.field} onPress={() => setOpenTypeFuente(true)} activeOpacity={0.88}>
+            <TouchableOpacity
+              style={[styles.field, fieldsLocked && styles.fieldDisabled]}
+              onPress={() => !fieldsLocked && setOpenTypeFuente(true)}
+              activeOpacity={0.88}
+              disabled={fieldsLocked}
+            >
               <Text style={styles.fieldTxt}>{typeFuente || 'Seleccionar'}</Text>
             </TouchableOpacity>
 
             {(typeFuente === 'Inspeccion SST' || typeFuente === 'Eventos') ? (
               <>
                 <Text style={styles.label}>Categoria</Text>
-                <TouchableOpacity style={styles.field} onPress={() => setOpenInspection(true)} activeOpacity={0.88}>
+                <TouchableOpacity
+                  style={[styles.field, fieldsLocked && styles.fieldDisabled]}
+                  onPress={() => !fieldsLocked && setOpenInspection(true)}
+                  activeOpacity={0.88}
+                  disabled={fieldsLocked}
+                >
                   <Text style={styles.fieldTxt}>
                     {inspectionItems.find((x) => String(x.id) === String(inspectionId))?.name ?? 'Seleccionar'}
                   </Text>
@@ -343,21 +542,31 @@ export function PamolsaActionForm() {
             ) : null}
 
             <Text style={styles.label}>Planta / Local</Text>
-            <TouchableOpacity style={styles.field} onPress={() => setOpenLocal(true)} activeOpacity={0.88}>
+            <TouchableOpacity
+              style={[styles.field, fieldsLocked && styles.fieldDisabled]}
+              onPress={() => !fieldsLocked && setOpenLocal(true)}
+              activeOpacity={0.88}
+              disabled={fieldsLocked}
+            >
               <Text style={styles.fieldTxt}>{localName}</Text>
             </TouchableOpacity>
 
             <Text style={styles.label}>Área</Text>
-            <TouchableOpacity style={styles.field} onPress={() => setOpenArea(true)} activeOpacity={0.88} disabled={!localId}>
+            <TouchableOpacity
+              style={[styles.field, fieldsLocked && styles.fieldDisabled]}
+              onPress={() => !fieldsLocked && setOpenArea(true)}
+              activeOpacity={0.88}
+              disabled={fieldsLocked || !localId}
+            >
               <Text style={styles.fieldTxt}>{areaName}</Text>
             </TouchableOpacity>
 
             <Text style={styles.label}>Responsable del área</Text>
             <TouchableOpacity
-              style={styles.field}
-              onPress={() => setOpenAreaResp(true)}
+              style={[styles.field, fieldsLocked && styles.fieldDisabled]}
+              onPress={() => !fieldsLocked && setOpenAreaResp(true)}
               activeOpacity={0.88}
-              disabled={!areaId}
+              disabled={fieldsLocked || !areaId}
             >
               <Text style={styles.fieldTxt}>{areaRespName}</Text>
             </TouchableOpacity>
@@ -373,13 +582,11 @@ export function PamolsaActionForm() {
           <>
             <Text style={styles.section}>Detalle</Text>
 
-            <Text style={styles.label}>Tabla de detalle</Text>
+            <Text style={styles.label}>Hallazgos</Text>
             {details.map((row, idx) => (
               <View key={`${idx}-${row.id ?? 'new'}`} style={styles.tableRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.tableTitle} numberOfLines={2}>
-                    {row.findings || '—'}
-                  </Text>
+                  <Text style={styles.tableTitle}>{row.findings || '—'}</Text>
                   <Text style={styles.tableMeta} numberOfLines={1}>
                     {(row.risk_level || '—') + ' · ' + (row.details?.length ? `${row.details.length} acción(es)` : '0 acción(es)')}
                   </Text>
@@ -393,7 +600,7 @@ export function PamolsaActionForm() {
                 >
                   <Text style={styles.smallBtnTxt}>Editar</Text>
                 </TouchableOpacity>
-                {!row.id ? (
+                {!visualize && !row.id ? (
                   <TouchableOpacity
                     style={[styles.smallBtn, styles.smallBtnDanger]}
                     onPress={() => setDetails((p) => p.filter((_, i) => i !== idx))}
@@ -403,24 +610,27 @@ export function PamolsaActionForm() {
                 ) : null}
               </View>
             ))}
-            <TouchableOpacity
-              style={styles.addBtn}
-              onPress={() => {
-                setDetailIndex(-1);
-                setDetailModalOpen(true);
-              }}
-            >
-              <Text style={styles.addBtnTxt}>Añadir registro</Text>
-            </TouchableOpacity>
+            {canAddDetailRow ? (
+              <TouchableOpacity
+                style={styles.addBtn}
+                onPress={() => {
+                  setDetailIndex(-1);
+                  setDetailModalOpen(true);
+                }}
+              >
+                <Text style={styles.addBtnTxt}>Añadir registro</Text>
+              </TouchableOpacity>
+            ) : null}
 
-            <Text style={styles.label}>Hallazgo reportado a</Text>
+            <Text style={styles.label}>Resultado de la inspección</Text>
             <TextInput
-              style={styles.area}
+              style={[styles.area, fieldsLocked && styles.fieldDisabled]}
               value={inspectionResult}
               onChangeText={setInspectionResult}
               placeholder="Detalle"
               placeholderTextColor={COLORS.textMuted}
               multiline
+              editable={!fieldsLocked}
             />
           </>
         ) : null}
@@ -436,11 +646,12 @@ export function PamolsaActionForm() {
 
             <Text style={styles.label}>Cargo</Text>
             <TextInput
-              style={styles.field}
+              style={[styles.field, fieldsLocked && styles.fieldDisabled]}
               value={chargeResponsable}
               onChangeText={setChargeResponsable}
               placeholder="Cargo"
               placeholderTextColor={COLORS.textMuted}
+              editable={!fieldsLocked}
             />
 
             <Text style={styles.label}>Fecha</Text>
@@ -450,14 +661,44 @@ export function PamolsaActionForm() {
 
             <Text style={styles.label}>Firma</Text>
             {signatureFlag && responsableSignUrl ? (
-              <View style={styles.field}>
-                <Text style={styles.fieldTxt}>Firma registrada</Text>
+              <View style={styles.sigWrap}>
+                <Image source={{ uri: responsableSignUrl }} style={styles.sigImg} resizeMode="contain" />
               </View>
             ) : (
-              <SignaturePad
-                onOK={setResponsableSignUrl}
-              />
+              <SignaturePad onOK={setResponsableSignUrl} />
             )}
+          </>
+        ) : null}
+
+        {slideIndex === 3 && recordId != null && hasNew ? (
+          <>
+            <Text style={styles.section}>Aprobación</Text>
+            <Text style={styles.label}>Estado</Text>
+            <View style={styles.segRow}>
+              {!role98 ? (
+                <TouchableOpacity
+                  style={[styles.segBtn, styles.segYellow, approved === 0 && styles.segOn]}
+                  onPress={() => setApproved(0)}
+                >
+                  <Text style={styles.segTxt}>Pendiente</Text>
+                </TouchableOpacity>
+              ) : null}
+              <TouchableOpacity
+                style={[styles.segBtn, styles.segGreen, approved === 1 && styles.segOn]}
+                onPress={() => role98 && setApproved(1)}
+                disabled={!role98}
+              >
+                <Text style={styles.segTxt}>Aprobado</Text>
+              </TouchableOpacity>
+              {role98 ? (
+                <TouchableOpacity
+                  style={[styles.segBtn, styles.segRed, approved === 2 && styles.segOn]}
+                  onPress={() => setApproved(2)}
+                >
+                  <Text style={styles.segTxt}>Anulado</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
           </>
         ) : null}
       </ScrollView>
@@ -480,7 +721,9 @@ export function PamolsaActionForm() {
           const next = (ids[0] as string) ?? '';
           setTypeFuente(next);
           // Anidado: si cambia fuente, limpiar categoria.
-          setInspectionId('');
+          if (!(next === 'Inspeccion SST' || next === 'Eventos')) {
+            setInspectionId('');
+          }
         }}
       />
       <VirtualSelect
@@ -500,7 +743,6 @@ export function PamolsaActionForm() {
         onConfirm={(ids) => {
           const next = ids[0] ?? '';
           setLocalId(next);
-          // Anidados: limpiar dependientes
           setAreaId('');
           setAreaResponsableId('');
         }}
@@ -530,8 +772,16 @@ export function PamolsaActionForm() {
         visible={detailModalOpen}
         title="Hallazgos y/o observaciones"
         type={1}
+        restart={restart}
+        visualize={visualize}
         currentItem={detailIndex >= 0 ? details[detailIndex] : null}
-        behaviorsTypes={(formService.behaviors_types as any[]) ?? []}
+        behaviorsTypes={
+          (formService.behaviors_types ?? []) as {
+            id: number | string;
+            name: string;
+            behaviors: { id: number | string; name: string }[];
+          }[]
+        }
         areaResponsableId={areaResponsableId}
         areaResponsable={areaRespName}
         onClose={() => setDetailModalOpen(false)}
@@ -552,40 +802,17 @@ export function PamolsaActionForm() {
             <Text style={styles.footTxt}>Cancelar</Text>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity
-            style={[styles.footBtn, styles.negative]}
-            onPress={() => setSlideIndex((s) => (s === 0 ? 0 : ((s - 1) as any)))}
-          >
+          <TouchableOpacity style={[styles.footBtn, styles.negative]} onPress={() => setSlideIndex((s) => (s - 1) as SlideIx)}>
             <Text style={styles.footTxt}>Anterior</Text>
           </TouchableOpacity>
         )}
 
-        {slideIndex < 2 ? (
-          <TouchableOpacity
-            style={[styles.footBtn, styles.positive]}
-            onPress={() => {
-              const err = slideIndex === 0 ? validateSlide1() : validateSlide2();
-              if (err) {
-                alertService.present('Hallazgo SST', err);
-                return;
-              }
-              setSlideIndex((s) => ((s + 1) as any));
-            }}
-          >
+        {slideIndex < sliderLimit - 1 ? (
+          <TouchableOpacity style={[styles.footBtn, styles.positive]} onPress={() => void goNext()}>
             <Text style={styles.footTxtOn}>Siguiente</Text>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity
-            style={[styles.footBtn, styles.positive]}
-            onPress={() => {
-              const err = validateSlide3();
-              if (err) {
-                alertService.present('Hallazgo SST', err);
-                return;
-              }
-              void submit();
-            }}
-          >
+          <TouchableOpacity style={[styles.footBtn, styles.positive]} onPress={() => void submit()}>
             <Text style={styles.footTxtOn}>Enviar</Text>
           </TouchableOpacity>
         )}
@@ -596,10 +823,55 @@ export function PamolsaActionForm() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: COLORS.menuContentBg },
+  headerBar: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
+  headerTitle: { fontSize: 14, fontWeight: '800', color: COLORS.text, textAlign: 'center' },
   body: { padding: 16, paddingBottom: 40 },
-  bullets: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 6, marginBottom: 10 },
-  bullet: { width: 10, height: 10, borderRadius: 10, backgroundColor: COLORS.lightGray },
-  bulletOn: { backgroundColor: COLORS.primary },
+  stepIndicator: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginTop: 8,
+    marginBottom: 4,
+    paddingHorizontal: 4,
+    gap: 4,
+  },
+  stepItem: { flex: 1, minWidth: 0, alignItems: 'center' },
+  bullet: {
+    width: 10,
+    height: 10,
+    borderRadius: 6,
+    backgroundColor: COLORS.lightGray,
+    marginBottom: 6,
+  },
+  bulletOn: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: COLORS.primary,
+    borderWidth: 2,
+    borderColor: COLORS.white,
+    marginBottom: 4,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  stepLabel: {
+    fontSize: 10,
+    lineHeight: 13,
+    textAlign: 'center',
+    color: COLORS.textMuted,
+    fontWeight: '600',
+  },
+  stepLabelActive: { color: COLORS.primary, fontWeight: '800' },
+  stepCurrent: {
+    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: '800',
+    color: COLORS.text,
+    marginBottom: 12,
+  },
   section: { marginTop: 8, fontSize: 16, fontWeight: '800', color: COLORS.text },
   label: { marginTop: 12, fontWeight: '700', color: COLORS.textLabel },
   field: {
@@ -610,6 +882,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.lightGray,
     backgroundColor: COLORS.white,
   },
+  fieldDisabled: { opacity: 0.55 },
   fieldTxt: { color: COLORS.text, fontSize: 15 },
   area: {
     marginTop: 6,
@@ -640,6 +913,23 @@ const styles = StyleSheet.create({
   smallBtnTxt: { color: COLORS.white, fontWeight: '800', fontSize: 12 },
   addBtn: { marginTop: 12, padding: 12, borderRadius: 10, backgroundColor: COLORS.secondary, alignItems: 'center' },
   addBtnTxt: { color: COLORS.white, fontWeight: '800' },
+  sigWrap: {
+    marginTop: 8,
+    minHeight: 120,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.lightGray,
+    backgroundColor: COLORS.white,
+    overflow: 'hidden',
+  },
+  sigImg: { width: '100%', height: 180 },
+  segRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 },
+  segBtn: { paddingHorizontal: 14, paddingVertical: 12, borderRadius: 8, minWidth: 100, alignItems: 'center' },
+  segYellow: { backgroundColor: '#f4d03f' },
+  segGreen: { backgroundColor: '#3eaf75' },
+  segRed: { backgroundColor: COLORS.danger },
+  segOn: { borderWidth: 2, borderColor: COLORS.text },
+  segTxt: { fontWeight: '800', color: COLORS.text },
   footer: {
     flexDirection: 'row',
     gap: 12,
@@ -654,4 +944,3 @@ const styles = StyleSheet.create({
   footTxt: { color: COLORS.text, fontWeight: '800' },
   footTxtOn: { color: COLORS.white, fontWeight: '800' },
 });
-

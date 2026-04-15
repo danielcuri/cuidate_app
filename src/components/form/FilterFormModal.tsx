@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,7 +10,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../../theme/colors';
-import { UserSearchModal } from './UserSearchModal';
+import { formService } from '../../services/FormService';
+import { useFormStore } from '../../stores/formStore';
+import { FormIonSelect, type IonSelectOption } from './FormIonSelect';
 
 /** Valores devueltos al filtrar (paridad FilterFormPage). */
 export type FilterFormValues = {
@@ -29,65 +30,139 @@ type LocalRow = { id?: number | string; name?: string; areas?: LocalRow[] };
 type Props = {
   visible: boolean;
   title?: string;
+  /** `effectiveness`: oculta «Fuente» (no usada en `/getListEffectiveness`). */
+  variant?: 'default' | 'effectiveness';
+  /** Si `false`, oculta «Responsable» (para `Actions`, donde no se usa). */
+  showUserFilter?: boolean;
   locals: unknown[];
   initial?: Partial<FilterFormValues>;
   onClose: () => void;
   onApply: (v: FilterFormValues) => void;
 };
 
-const STATUS_OPTS = [
-  { id: 'all', name: 'Todos' },
-  { id: 'out', name: 'Fuera de fecha' },
-  { id: 'pending', name: 'Pendiente' },
+const STATUS_OPTS: IonSelectOption<string>[] = [
+  { value: 'all', label: 'Todos' },
+  { value: 'out', label: 'Fuera de fecha' },
+  { value: 'pending', label: 'Pendiente' },
 ];
 
-const SOURCE_OPTS = [
-  { id: '1', name: 'Inspección' },
-  { id: '2', name: 'Observación' },
-  { id: '3', name: 'Simulacro' },
-  { id: '4', name: 'Charla' },
-  { id: '5', name: 'IPERC' },
-  { id: '6', name: 'Investigación' },
-  { id: '7', name: 'Otro' },
-  { id: '8', name: 'Auditoría' },
+const SOURCE_OPTS: IonSelectOption<string>[] = [
+  { value: '%', label: 'Todos' },
+  { value: '1', label: 'Inspección' },
+  { value: '2', label: 'Observación' },
+  { value: '3', label: 'Simulacro' },
+  { value: '4', label: 'Charla' },
+  { value: '5', label: 'IPERC' },
+  { value: '6', label: 'Investigación' },
+  { value: '7', label: 'Otro' },
+  { value: '8', label: 'Auditoría' },
 ];
+
+function pct<T extends string | number>(v: T | undefined, fallback: T): T {
+  if (v === undefined || v === null || v === '') {
+    return fallback;
+  }
+  return v;
+}
 
 export function FilterFormModal({
   visible,
   title = 'Filtros',
+  variant = 'default',
+  showUserFilter = true,
   locals,
   initial,
   onClose,
   onApply,
 }: Props) {
-  const [sede, setSede] = useState<string | number | undefined>();
-  const [area, setArea] = useState<string | number | undefined>();
+  const [sede, setSede] = useState<string | number>('%');
+  const [area, setArea] = useState<string | number>('%');
   const [status, setStatus] = useState<string>('all');
-  const [source, setSource] = useState<string>('1');
+  const [source, setSource] = useState<string>('%');
   const [proposed, setProposed] = useState('');
-  const [userSel, setUserSel] = useState<{ id: string | number; name: string } | null>(
-    null
-  );
-  const [userModal, setUserModal] = useState(false);
+  const [userSelected, setUserSelected] = useState<string | number>('%');
+
+  const localList = (locals as LocalRow[]) ?? [];
+  const storeUsers = useFormStore((s) => s.users);
 
   useEffect(() => {
-    if (visible && initial) {
-      setSede(initial.sede_selected);
-      setArea(initial.area_selected);
-      setStatus(String(initial.status_filter ?? 'all'));
-      setSource(String(initial.source_filter ?? '1'));
-      setProposed(initial.proposed_filter ?? '');
+    if (!visible) {
+      return;
     }
-  }, [visible, initial]);
+    const i = initial ?? {};
+    setSede(pct(i.sede_selected, '%'));
+    setArea(pct(i.area_selected, '%'));
+    setStatus(String(i.status_filter ?? 'all'));
+    setSource(String(i.source_filter ?? '%'));
+    setProposed(i.proposed_filter ?? '');
+    const us = i.user_selected;
+    if (us == null || us === '' || String(us) === '%') {
+      setUserSelected('%');
+    } else {
+      setUserSelected(us);
+    }
+  }, [
+    visible,
+    initial?.sede_selected,
+    initial?.area_selected,
+    initial?.status_filter,
+    initial?.source_filter,
+    initial?.proposed_filter,
+    initial?.user_selected,
+  ]);
+
+  const sedeOptions: IonSelectOption<string | number>[] = useMemo(() => {
+    const head: IonSelectOption<string> = { value: '%', label: 'Todos' };
+    const rest = localList.map((l) => ({
+      value: l.id as string | number,
+      label: String(l.name ?? l.id),
+    }));
+    return [head, ...rest];
+  }, [localList]);
 
   const areasForSede = useMemo(() => {
-    const list = (locals as LocalRow[]) ?? [];
-    if (sede == null) {
+    if (String(sede) === '%') {
       return [] as LocalRow[];
     }
-    const row = list.find((l) => String(l.id) === String(sede));
+    const row = localList.find((l) => String(l.id) === String(sede));
     return row?.areas ?? [];
-  }, [locals, sede]);
+  }, [localList, sede]);
+
+  const areaOptions: IonSelectOption<string | number>[] = useMemo(() => {
+    const head: IonSelectOption<string> = { value: '%', label: 'Todos' };
+    if (String(sede) === '%') {
+      return [head];
+    }
+    const rest = areasForSede.map((a) => ({
+      value: a.id as string | number,
+      label: String(a.name ?? a.id),
+    }));
+    return [head, ...rest];
+  }, [areasForSede, sede]);
+
+  const userOptions: IonSelectOption<string | number>[] = useMemo(() => {
+    const fromStore = storeUsers as { id: number; name: string }[];
+    const users =
+      Array.isArray(fromStore) && fromStore.length > 0 ?
+        fromStore
+      : ((formService.users as { id: number; name: string }[]) ?? []);
+    const head: IonSelectOption<string> = { value: '%', label: 'Todos' };
+    const rest = users.map((u) => ({
+      value: u.id,
+      label: u.name,
+    }));
+    const base: IonSelectOption<string | number>[] = [head, ...rest];
+    if (
+      userSelected !== '%' &&
+      !base.some((o) => String(o.value) === String(userSelected))
+    ) {
+      base.push({
+        value: userSelected,
+        label: `Usuario (${String(userSelected)})`,
+      });
+    }
+    return base;
+  }, [storeUsers, userSelected]);
 
   const apply = () => {
     onApply({
@@ -96,7 +171,7 @@ export function FilterFormModal({
       status_filter: status,
       source_filter: source,
       proposed_filter: proposed,
-      user_selected: userSel?.id ?? '%',
+      user_selected: userSelected,
     });
     onClose();
   };
@@ -104,6 +179,11 @@ export function FilterFormModal({
   const closeOnly = () => {
     onApply({ close: true });
     onClose();
+  };
+
+  const onSedeChange = (v: string | number) => {
+    setSede(v);
+    setArea('%');
   };
 
   return (
@@ -116,80 +196,41 @@ export function FilterFormModal({
           </TouchableOpacity>
         </View>
         <ScrollView contentContainerStyle={styles.body}>
-          <Text style={styles.label}>Planta / local</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.chips}>
-              {(locals as LocalRow[]).map((l) => (
-                <Pressable
-                  key={String(l.id)}
-                  style={[styles.chip, String(sede) === String(l.id) && styles.chipOn]}
-                  onPress={() => {
-                    setSede(l.id);
-                    setArea(undefined);
-                  }}
-                >
-                  <Text
-                    style={[styles.chipTxt, String(sede) === String(l.id) && styles.chipTxtOn]}
-                  >
-                    {String(l.name ?? l.id)}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </ScrollView>
+          <FormIonSelect<string | number>
+            label="Filtro por Planta / local"
+            value={sede}
+            options={sedeOptions}
+            onChange={onSedeChange}
+            placeholder="Seleccionar"
+          />
 
-          <Text style={styles.label}>Área</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.chips}>
-              {areasForSede.map((a) => (
-                <Pressable
-                  key={String(a.id)}
-                  style={[styles.chip, String(area) === String(a.id) && styles.chipOn]}
-                  onPress={() => setArea(a.id)}
-                >
-                  <Text
-                    style={[styles.chipTxt, String(area) === String(a.id) && styles.chipTxtOn]}
-                  >
-                    {String(a.name ?? a.id)}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </ScrollView>
+          <FormIonSelect<string | number>
+            label="Filtro por área"
+            value={area}
+            options={areaOptions}
+            onChange={setArea}
+            placeholder="Seleccionar"
+          />
 
-          <Text style={styles.label}>Estado</Text>
-          <View style={styles.chips}>
-            {STATUS_OPTS.map((o) => (
-              <Pressable
-                key={o.id}
-                style={[styles.chip, status === o.id && styles.chipOn]}
-                onPress={() => setStatus(o.id)}
-              >
-                <Text style={[styles.chipTxt, status === o.id && styles.chipTxtOn]}>
-                  {o.name}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          <FormIonSelect<string>
+            label="Filtro por estado"
+            value={status}
+            options={STATUS_OPTS}
+            onChange={setStatus}
+            placeholder="Seleccionar"
+          />
 
-          <Text style={styles.label}>Fuente</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.chips}>
-              {SOURCE_OPTS.map((o) => (
-                <Pressable
-                  key={o.id}
-                  style={[styles.chip, source === o.id && styles.chipOn]}
-                  onPress={() => setSource(o.id)}
-                >
-                  <Text style={[styles.chipTxt, source === o.id && styles.chipTxtOn]}>
-                    {o.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </ScrollView>
+          {variant === 'default' ? (
+            <FormIonSelect<string>
+              label="Filtro por fuente"
+              value={source}
+              options={SOURCE_OPTS}
+              onChange={setSource}
+              placeholder="Seleccionar"
+            />
+          ) : null}
 
-          <Text style={styles.label}>Acción propuesta</Text>
+          <Text style={styles.label}>Filtro por acción propuesta</Text>
           <TextInput
             style={styles.input}
             value={proposed}
@@ -198,27 +239,23 @@ export function FilterFormModal({
             placeholderTextColor={COLORS.textMuted}
           />
 
-          <Text style={styles.label}>Responsable</Text>
-          <TouchableOpacity style={styles.userBtn} onPress={() => setUserModal(true)}>
-            <Text style={styles.userBtnTxt}>
-              {userSel ? userSel.name : 'Todos'}
-            </Text>
-          </TouchableOpacity>
+          {showUserFilter ? (
+            <FormIonSelect<string | number>
+              label="Responsable"
+              value={userSelected}
+              options={userOptions}
+              onChange={setUserSelected}
+              placeholder="Todos"
+              searchable
+              searchPlaceholder="Buscar usuario"
+            />
+          ) : null}
 
           <TouchableOpacity style={styles.primary} onPress={apply}>
             <Text style={styles.primaryTxt}>Filtrar</Text>
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
-
-      <UserSearchModal
-        visible={userModal}
-        onClose={() => setUserModal(false)}
-        onPick={(u) => {
-          setUserSel(u);
-          setUserModal(false);
-        }}
-      />
     </Modal>
   );
 }
@@ -244,16 +281,6 @@ const styles = StyleSheet.create({
     color: COLORS.textLabel,
     fontSize: 13,
   },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: COLORS.lightGray,
-  },
-  chipOn: { backgroundColor: COLORS.primary },
-  chipTxt: { color: COLORS.text, fontSize: 13 },
-  chipTxtOn: { color: COLORS.white, fontWeight: '700' },
   input: {
     borderWidth: 1,
     borderColor: COLORS.lightGray,
@@ -262,13 +289,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORS.text,
   },
-  userBtn: {
-    borderWidth: 1,
-    borderColor: COLORS.lightGray,
-    borderRadius: 8,
-    padding: 14,
-  },
-  userBtnTxt: { color: COLORS.text },
   primary: {
     marginTop: 24,
     backgroundColor: COLORS.secondary,

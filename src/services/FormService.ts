@@ -1,4 +1,10 @@
-import type { FormsList, GetPamolsaRecordsResponse } from "../interfaces/forms";
+import type {
+    FormsList,
+    GetListEffectivenessPayload,
+    GetListEffectivenessResponse,
+    GetPamolsaRecordsResponse,
+    SavePamolsaEffectivenessPayload,
+} from "../interfaces/forms";
 import { localStorage } from "../utils/storage";
 import { queryService } from "./QueryService";
 
@@ -72,9 +78,9 @@ export class FormService {
     }
 
     async getListEffectiveness(
-        data: Record<string, unknown>,
-    ): Promise<unknown> {
-        return queryService.executeQuery<unknown>(
+        data: GetListEffectivenessPayload,
+    ): Promise<GetListEffectivenessResponse> {
+        return queryService.executeQuery<GetListEffectivenessResponse>(
             "post",
             "/getListEffectiveness",
             data,
@@ -101,7 +107,22 @@ export class FormService {
     }
 
     async saveDataPamolsaTracing(data: unknown): Promise<unknown> {
-        return queryService.executeQuery<unknown>("post", "/saveTracing", data);
+        return queryService.executeQuery<unknown>(
+            "post",
+            "/saveDataPamolsaTracing",
+            data,
+        );
+    }
+
+    /** POST paridad Ionic `saveDataPamolsaEffectiveness` → `/saveDataPamolsaEffectiveness`. */
+    async saveDataPamolsaEffectiveness(
+        data: SavePamolsaEffectivenessPayload,
+    ): Promise<{ error?: boolean; msg?: string }> {
+        return queryService.executeQuery<{ error?: boolean; msg?: string }>(
+            "post",
+            "/saveDataPamolsaEffectiveness",
+            data,
+        );
     }
 
     async saveEffectiveness(data: unknown): Promise<unknown> {
@@ -139,10 +160,6 @@ export class FormService {
             "/pamolsa-action",
             _data,
         );
-    }
-
-    saveDataPamolsaEffectiveness(_data: unknown): Promise<unknown> {
-        return this.saveEffectiveness(_data);
     }
 
     async saveDataLocal(): Promise<void> {

@@ -10,6 +10,26 @@ import { queryService } from '../../../services/QueryService';
 
 type Route = RouteProp<RootStackParamList, 'PamolsaActionFormDetail'>;
 
+function parseActionDetailPayload(res: unknown): Action | null {
+  if (res == null || typeof res !== 'object') {
+    return null;
+  }
+  const o = res as Record<string, unknown>;
+  if (o.error === true) {
+    return null;
+  }
+  if (o.action != null && typeof o.action === 'object') {
+    return o.action as Action;
+  }
+  if (o.data != null && typeof o.data === 'object') {
+    return o.data as Action;
+  }
+  if (typeof o.id === 'number') {
+    return o as unknown as Action;
+  }
+  return null;
+}
+
 export function PamolsaActionFormDetail() {
   const route = useRoute<Route>();
   const { actionId } = route.params;
@@ -26,18 +46,16 @@ export function PamolsaActionFormDetail() {
     void (async () => {
       setLoading(true);
       try {
-        const res = (await formService.getActionDetail({ action_id: actionId })) as
-          | { error?: boolean; action?: Action; data?: Action }
-          | Action;
-        if ((res as { error?: boolean })?.error) {
+        const res = await formService.getActionDetail({ action_id: actionId });
+        if (res != null && typeof res === 'object' && 'error' in res && (res as { error?: boolean }).error) {
           queryService.manageErrors(res as { error?: boolean; msg?: string });
           if (mounted) {
             setAction(fallback);
           }
         } else {
-          const a = (res as any)?.action ?? (res as any)?.data ?? res;
+          const a = parseActionDetailPayload(res);
           if (mounted) {
-            setAction((a as Action) ?? fallback);
+            setAction(a ?? fallback);
           }
         }
       } catch (e) {
