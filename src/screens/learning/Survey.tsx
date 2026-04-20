@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import type { StackScreenProps } from '@react-navigation/stack';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../../theme/colors';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { learningService } from '../../services/LearningService';
@@ -8,6 +9,7 @@ import { loadingService } from '../../services/LoadingService';
 import { queryService } from '../../services/QueryService';
 import { userService } from '../../services/UserService';
 import { RadioGroup } from '../../components/learning/RadioGroup';
+import { RecordsHeader } from '../../components/shared/RecordsHeader';
 
 type Props = StackScreenProps<RootStackParamList, 'Survey'>;
 
@@ -16,6 +18,10 @@ type SurveyValue = 1 | 2 | 3 | 4 | 5;
 export function Survey({ navigation, route }: Props) {
   const { courseId, name } = route.params;
   const dni = userService.user.dni ?? '';
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const options = useMemo(
     () =>
@@ -59,9 +65,12 @@ export function Survey({ navigation, route }: Props) {
   };
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <View style={styles.card}>
-        <Text style={styles.title}>Encuesta</Text>
+    <View style={styles.page}>
+      <SafeAreaView style={styles.safeTop} edges={['top']}>
+        <RecordsHeader title="Encuesta" onBack={() => navigation.goBack()} />
+      </SafeAreaView>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <View style={styles.card}>
         <Text style={styles.sub} numberOfLines={2}>
           {name}
         </Text>
@@ -95,16 +104,17 @@ export function Survey({ navigation, route }: Props) {
         <TouchableOpacity style={styles.btn} onPress={submit} activeOpacity={0.9}>
           <Text style={styles.btnText}>Finalizar</Text>
         </TouchableOpacity>
-      </View>
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: COLORS.menuContentBg },
+  safeTop: { backgroundColor: COLORS.white },
   content: { padding: 16, paddingBottom: 24 },
   card: { backgroundColor: COLORS.white, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: COLORS.lightGray },
-  title: { fontWeight: '900', fontSize: 16, color: COLORS.text },
   sub: { marginTop: 4, color: COLORS.textMuted, fontWeight: '800' },
   block: { marginTop: 16, gap: 10 },
   q: { fontWeight: '900', color: COLORS.text },

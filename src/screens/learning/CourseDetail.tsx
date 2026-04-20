@@ -1,8 +1,9 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { StackScreenProps } from '@react-navigation/stack';
 import * as WebBrowser from 'expo-web-browser';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../../theme/colors';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { learningService } from '../../services/LearningService';
@@ -11,6 +12,7 @@ import { queryService } from '../../services/QueryService';
 import { userService } from '../../services/UserService';
 import type { Complex, Course, SpecialFormat } from '../../interfaces/learning';
 import { useLearningStore } from '../../stores/learningStore';
+import { RecordsHeader } from '../../components/shared/RecordsHeader';
 
 type Props = StackScreenProps<RootStackParamList, 'CourseDetail'>;
 
@@ -21,6 +23,10 @@ export function CourseDetail({ navigation, route }: Props) {
   const [course, setCourse] = useState<Course | undefined>(undefined);
   const [sections, setSections] = useState<SpecialFormat[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const setCurrentCourse = useLearningStore((s) => s.setCurrentCourse);
   const setCurrentCourseId = useLearningStore((s) => s.setCurrentCourseId);
@@ -79,14 +85,56 @@ export function CourseDetail({ navigation, route }: Props) {
 
   return (
     <View style={styles.page}>
+      <SafeAreaView style={styles.safeTop} edges={['top']}>
+        <RecordsHeader title={name} onBack={() => navigation.goBack()} titleNumberOfLines={2} />
+      </SafeAreaView>
       <View style={styles.header}>
-        <Text style={styles.title} numberOfLines={2}>
-          {name}
-        </Text>
-        {course?.area_name ? <Text style={styles.sub}>{course.area_name}</Text> : null}
-        {course?.date_end ? <Text style={styles.meta}>Fecha límite: {course.date_end}</Text> : null}
-        {course?.totalTimeVideo ? <Text style={styles.meta}>Duración video: {course.totalTimeVideo}</Text> : null}
-        {course?.totalTimeExam ? <Text style={styles.meta}>Duración examen: {course.totalTimeExam}</Text> : null}
+        {course?.area_name ? (
+          <View style={styles.headerRow}>
+            <Ionicons name="business-outline" size={18} color={COLORS.primary} />
+            <Text style={styles.headerLabel}>Área</Text>
+            <Text style={styles.headerValue} numberOfLines={2}>
+              {course.area_name}
+            </Text>
+          </View>
+        ) : null}
+
+        {course?.date_end ? (
+          <View style={styles.headerRow}>
+            <Ionicons name="calendar-outline" size={18} color={COLORS.primary} />
+            <Text style={styles.headerLabel}>Fecha límite</Text>
+            <Text style={styles.headerValue} numberOfLines={1}>
+              {course.date_end}
+            </Text>
+          </View>
+        ) : null}
+
+        {course?.totalTimeVideo ? (
+          <View style={styles.headerRow}>
+            <Ionicons name="videocam-outline" size={18} color={COLORS.primary} />
+            <Text style={styles.headerLabel}>Total video</Text>
+            <Text style={styles.headerValue} numberOfLines={1}>
+              {course.totalTimeVideo}
+            </Text>
+          </View>
+        ) : null}
+
+        {course?.totalTimeExam ? (
+          <View style={styles.headerRow}>
+            <Ionicons name="document-text-outline" size={18} color={COLORS.primary} />
+            <Text style={styles.headerLabel}>Total examen</Text>
+            <Text style={styles.headerValue} numberOfLines={1}>
+              {course.totalTimeExam}
+            </Text>
+          </View>
+        ) : null}
+
+        {course?.long_description ? (
+          <View style={styles.headerDescription}>
+            <Text style={styles.headerLabel}>Descripción</Text>
+            <Text style={styles.headerDescriptionText}>{course.long_description}</Text>
+          </View>
+        ) : null}
       </View>
 
       {loading ? (
@@ -165,10 +213,13 @@ export function CourseDetail({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: COLORS.menuContentBg },
+  safeTop: { backgroundColor: COLORS.white },
   header: { padding: 16, backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.lightGray },
-  title: { fontSize: 16, fontWeight: '900', color: COLORS.text },
-  sub: { marginTop: 4, color: COLORS.textMuted, fontWeight: '800' },
-  meta: { marginTop: 4, color: COLORS.textMuted },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  headerLabel: { color: COLORS.primary, fontWeight: '900' },
+  headerValue: { flex: 1, color: COLORS.textMuted, fontWeight: '800' },
+  headerDescription: { marginTop: 10 },
+  headerDescriptionText: { marginTop: 6, color: COLORS.text, fontWeight: '700', lineHeight: 20 },
   list: { padding: 12, paddingBottom: 20 },
   sectionTitle: { marginTop: 12, marginBottom: 8, fontWeight: '900', color: COLORS.text },
   row: {

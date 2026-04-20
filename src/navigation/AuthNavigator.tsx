@@ -4,7 +4,6 @@ import { Splash } from '../screens/auth/Splash';
 import { Login } from '../screens/auth/Login';
 import { RecoverPassword } from '../screens/auth/RecoverPassword';
 import { ChangePassword } from '../screens/auth/ChangePassword';
-import { COLORS } from '../theme/colors';
 
 export type AuthStackParamList = {
   Splash: undefined;
@@ -21,21 +20,7 @@ export function AuthNavigator() {
       <Stack.Screen name="Splash" component={Splash} />
       <Stack.Screen name="Login" component={Login} />
       <Stack.Screen name="RecoverPassword" component={RecoverPassword} />
-      <Stack.Screen
-        name="ChangePassword"
-        component={ChangePassword}
-        options={{
-          headerShown: true,
-          title: 'Cambiar contraseña',
-          headerTitleStyle: {
-            color: COLORS.changePasswordTitle,
-            fontSize: 13,
-            fontWeight: '900',
-          },
-          headerTintColor: COLORS.text,
-          headerBackTitle: 'Atrás',
-        }}
-      />
+      <Stack.Screen name="ChangePassword" component={ChangePassword} />
     </Stack.Navigator>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useLayoutEffect, useState } from "react";
 import {
     Alert,
     Image,
@@ -15,7 +15,6 @@ import * as WebBrowser from "expo-web-browser";
 import { COLORS } from "@/theme/colors";
 import { Card } from "@/components/shared/Card";
 import { MenuFooter } from "@/components/shared/MenuFooter";
-import { MenuHeader } from "@/components/shared/MenuHeader";
 import {
     CareSvgIcon,
     CovidSvgIcon,
@@ -26,10 +25,9 @@ import { medicalService } from "@/services/MedicalService";
 import { userService } from "@/services/UserService";
 import { useMedicalStore } from "@/store/medicalStore";
 import type { RootStackParamList } from "@/navigation/AppNavigator";
+import { RecordsHeader } from "@/components/shared/RecordsHeader";
 
 const WEB_SYMPTOMS_URL = "https://simplexgo.com/covid/pamolsa/public/";
-const LOGO_LEFT = require("../../../assets/primero_seguro.jpg");
-const LOGO_RIGHT = require("../../../assets/pamolsa.jpg");
 const PORTRAIT = require("../../../assets/medical/portrait_medical.png");
 
 type Nav = StackNavigationProp<RootStackParamList, "MedicalMenu">;
@@ -38,6 +36,10 @@ export function MedicalMenu() {
     const navigation = useNavigation<Nav>();
     const [restDay, setRestDay] = useState<number | null>(null);
     const setStoreRestDay = useMedicalStore((s) => s.setRestDay);
+
+    useLayoutEffect(() => {
+        navigation.setOptions({ headerShown: false });
+    }, [navigation]);
 
     const openWeb = useCallback(async () => {
         await WebBrowser.openBrowserAsync(WEB_SYMPTOMS_URL);
@@ -86,7 +88,10 @@ export function MedicalMenu() {
     return (
         <View style={styles.page}>
             <SafeAreaView style={styles.safeTop} edges={["top"]}>
-                <MenuHeader logoLeft={LOGO_LEFT} logoRight={LOGO_RIGHT} />
+                <RecordsHeader
+                    title={"Bienvenido " + (userService.user.name ?? "Usuario")}
+                    onBack={() => navigation.goBack()}
+                />
             </SafeAreaView>
             <ScrollView
                 style={styles.scroll}

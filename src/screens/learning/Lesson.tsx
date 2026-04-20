@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { WebView } from 'react-native-webview';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../../theme/colors';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { learningService } from '../../services/LearningService';
@@ -10,10 +11,11 @@ import { queryService } from '../../services/QueryService';
 import { userService } from '../../services/UserService';
 import type { Course, Lesson as LessonT } from '../../interfaces/learning';
 import { useLearningStore } from '../../stores/learningStore';
+import { RecordsHeader } from '../../components/shared/RecordsHeader';
 
 type Props = StackScreenProps<RootStackParamList, 'Lesson'>;
 
-export function Lesson({ route }: Props) {
+export function Lesson({ navigation, route }: Props) {
   const { courseId, name, lessonId } = route.params;
   const dni = userService.user.dni ?? '';
   const userId = userService.user.id ?? 0;
@@ -36,6 +38,10 @@ export function Lesson({ route }: Props) {
 
   const videoId = lesson?.video_link ?? '';
   const embedUrl = videoId ? `https://player.vimeo.com/video/${videoId}?autoplay=0&playsinline=1` : '';
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   useEffect(() => {
     const run = async () => {
@@ -125,12 +131,16 @@ export function Lesson({ route }: Props) {
 
   return (
     <View style={styles.page}>
+      <SafeAreaView style={styles.safeTop} edges={['top']}>
+        <RecordsHeader
+          title={lesson?.name ?? 'Lección'}
+          onBack={() => navigation.goBack()}
+          titleNumberOfLines={2}
+        />
+      </SafeAreaView>
       <View style={styles.head}>
         <Text style={styles.courseName} numberOfLines={2}>
           {name}
-        </Text>
-        <Text style={styles.lessonName} numberOfLines={2}>
-          {lesson?.name ?? 'Lección'}
         </Text>
         {lesson?.video_duration ? <Text style={styles.meta}>Duración: {lesson.video_duration}</Text> : null}
       </View>
@@ -170,9 +180,9 @@ export function Lesson({ route }: Props) {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: COLORS.menuContentBg },
+  safeTop: { backgroundColor: COLORS.white },
   head: { padding: 16, backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.lightGray },
   courseName: { fontWeight: '900', color: COLORS.text },
-  lessonName: { marginTop: 4, fontWeight: '900', color: COLORS.text, fontSize: 16 },
   meta: { marginTop: 4, color: COLORS.textMuted },
   player: { flex: 1, backgroundColor: '#000' },
   actions: { padding: 12, backgroundColor: COLORS.white, borderTopWidth: 1, borderTopColor: COLORS.lightGray },

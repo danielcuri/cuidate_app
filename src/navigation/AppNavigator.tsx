@@ -64,12 +64,6 @@ export type RootStackParamList = {
 
 const Root = createStackNavigator<RootStackParamList>();
 
-const headerOpts = {
-  headerShown: true as const,
-  headerTintColor: COLORS.text,
-  headerBackTitle: 'Atrás',
-};
-
 export function AppNavigator() {
   return (
     <NavigationContainer>
@@ -77,21 +71,9 @@ export function AppNavigator() {
           <Root.Screen name="Auth" component={AuthNavigator} />
           <Root.Screen name="PreMain" component={PreMain} />
           <Root.Screen name="FormMenu" component={FormMenu} />
-          <Root.Screen
-            name="CanvasForm"
-            component={CanvasForm}
-            options={{ ...headerOpts, title: 'Formularios Canvas' }}
-          />
-          <Root.Screen
-            name="CanvasFormEdit"
-            component={CanvasForm}
-            options={{ ...headerOpts, title: 'Editar borrador' }}
-          />
-          <Root.Screen
-            name="ActionDetail"
-            component={ActionDetail}
-            options={{ ...headerOpts, title: 'Detalle acción' }}
-          />
+          <Root.Screen name="CanvasForm" component={CanvasForm} />
+          <Root.Screen name="CanvasFormEdit" component={CanvasForm} />
+          <Root.Screen name="ActionDetail" component={ActionDetail} />
           <Root.Screen
             name="CreateEffectiveness"
             component={CreateEffectiveness}
@@ -102,31 +84,11 @@ export function AppNavigator() {
             component={Effectiveness}
             options={{ headerShown: false }}
           />
-          <Root.Screen
-            name="Actions"
-            component={Actions}
-            options={{ ...headerOpts, title: 'Acciones Pamolsa' }}
-          />
-          <Root.Screen
-            name="ListPending"
-            component={ListPending}
-            options={{ ...headerOpts, title: 'Pendientes' }}
-          />
-          <Root.Screen
-            name="Formats"
-            component={Formats}
-            options={{ ...headerOpts, title: 'Formatos' }}
-          />
-          <Root.Screen
-            name="PamolsaActionForm"
-            component={PamolsaActionForm}
-            options={{ ...headerOpts, title: 'Hallazgo SST' }}
-          />
-          <Root.Screen
-            name="PamolsaActionFormDetail"
-            component={PamolsaActionFormDetail}
-            options={{ ...headerOpts, title: 'Detalle hallazgo' }}
-          />
+          <Root.Screen name="Actions" component={Actions} />
+          <Root.Screen name="ListPending" component={ListPending} />
+          <Root.Screen name="Formats" component={Formats} />
+          <Root.Screen name="PamolsaActionForm" component={PamolsaActionForm} />
+          <Root.Screen name="PamolsaActionFormDetail" component={PamolsaActionFormDetail} />
           <Root.Screen
             name="Records"
             component={Records}
@@ -149,41 +111,13 @@ export function AppNavigator() {
             options={{ headerShown: false }}
           />
           <Root.Screen name="LearningMenu" component={LearningMenu} />
-          <Root.Screen
-            name="Courses"
-            component={Courses}
-            options={{ ...headerOpts, title: 'Capacitaciones' }}
-          />
-          <Root.Screen
-            name="CourseDetail"
-            component={CourseDetail}
-            options={{ ...headerOpts, title: 'Detalle curso' }}
-          />
-          <Root.Screen
-            name="Lesson"
-            component={Lesson}
-            options={{ ...headerOpts, title: 'Lección' }}
-          />
-          <Root.Screen
-            name="PreExam"
-            component={PreExam}
-            options={{ ...headerOpts, title: 'Pre-examen' }}
-          />
-          <Root.Screen
-            name="Achievement"
-            component={Achievement}
-            options={{ ...headerOpts, title: 'Logros' }}
-          />
-          <Root.Screen
-            name="Exam"
-            component={Exam}
-            options={{ ...headerOpts, title: 'Exámenes' }}
-          />
-          <Root.Screen
-            name="Survey"
-            component={Survey}
-            options={{ ...headerOpts, title: 'Encuesta' }}
-          />
+          <Root.Screen name="Courses" component={Courses} />
+          <Root.Screen name="CourseDetail" component={CourseDetail} />
+          <Root.Screen name="Lesson" component={Lesson} />
+          <Root.Screen name="PreExam" component={PreExam} />
+          <Root.Screen name="Achievement" component={Achievement} />
+          <Root.Screen name="Exam" component={Exam} />
+          <Root.Screen name="Survey" component={Survey} />
         </Root.Navigator>
     </NavigationContainer>
   );

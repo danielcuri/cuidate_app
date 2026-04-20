@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -10,18 +10,24 @@ import {
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../../theme/colors';
 import { formService } from '../../services/FormService';
 import { deleteDraft } from '../../utils/formDrafts';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import type { FormLocalSaved } from '../../interfaces/forms';
 import { FormListCard } from '../../components/form/FormListCard';
+import { RecordsHeader } from '../../components/shared/RecordsHeader';
 
 type Nav = StackNavigationProp<RootStackParamList, 'ListPending'>;
 
 export function ListPending() {
   const navigation = useNavigation<Nav>();
   const [items, setItems] = useState<FormLocalSaved[]>([]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const reload = useCallback(async () => {
     await formService.loadStorage();
@@ -57,6 +63,9 @@ export function ListPending() {
 
   return (
     <View style={styles.page}>
+      <SafeAreaView style={styles.safeTop} edges={['top']}>
+        <RecordsHeader title="Pendientes" onBack={() => navigation.goBack()} />
+      </SafeAreaView>
       <FlatList
         data={items}
         keyExtractor={(_, i) => `d-${i}`}
@@ -95,6 +104,7 @@ export function ListPending() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: COLORS.menuContentBg },
+  safeTop: { backgroundColor: COLORS.white },
   empty: { textAlign: 'center', marginTop: 48, color: COLORS.textMuted, paddingHorizontal: 24 },
   rowWrap: { position: 'relative' },
   actions: {

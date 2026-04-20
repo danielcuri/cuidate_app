@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useLayoutEffect, useState } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { StackNavigationProp } from "@react-navigation/stack";
@@ -9,19 +9,20 @@ import type { MedicalRest } from "@/interfaces/medical";
 import { medicalService } from "@/services/MedicalService";
 import { userService } from "@/services/UserService";
 import { loadingService } from "@/services/LoadingService";
-import { MenuHeader } from "@/components/shared/MenuHeader";
 import { MenuFooter } from "@/components/shared/MenuFooter";
 import { MedicalRestCard } from "@/components/medical/MedicalRestCard";
+import { RecordsHeader } from "@/components/shared/RecordsHeader";
 
 type Nav = StackNavigationProp<RootStackParamList, "ListRest">;
-
-const LOGO_LEFT = require("../../../assets/primero_seguro.jpg");
-const LOGO_RIGHT = require("../../../assets/pamolsa.jpg");
 
 export function ListRest() {
     const navigation = useNavigation<Nav>();
     const [records, setRecords] = useState<MedicalRest[]>([]);
     const [loading, setLoading] = useState(true);
+
+    useLayoutEffect(() => {
+        navigation.setOptions({ headerShown: false });
+    }, [navigation]);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -49,10 +50,10 @@ export function ListRest() {
     return (
         <View style={styles.page}>
             <SafeAreaView style={styles.safeTop} edges={["top"]}>
-                <MenuHeader
+                <RecordsHeader
                     title="Solicitudes de descanso médico"
-                    logoLeft={LOGO_LEFT}
-                    logoRight={LOGO_RIGHT}
+                    onBack={() => navigation.goBack()}
+                    titleNumberOfLines={2}
                 />
             </SafeAreaView>
             {!loading ? (

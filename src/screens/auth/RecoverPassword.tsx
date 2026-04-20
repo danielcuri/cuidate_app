@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -19,6 +19,7 @@ import { userService } from '../../services/UserService';
 import { loadingService } from '../../services/LoadingService';
 import { queryService } from '../../services/QueryService';
 import type { AuthStackParamList } from '../../navigation/AuthNavigator';
+import { RecordsHeader } from '../../components/shared/RecordsHeader';
 
 type Nav = StackNavigationProp<AuthStackParamList, 'RecoverPassword'>;
 
@@ -26,6 +27,10 @@ export function RecoverPassword() {
   const navigation = useNavigation<Nav>();
   const [email, setEmail] = useState('');
   const [isCharging, setIsCharging] = useState(false);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const goLogin = () => {
     navigation.goBack();
@@ -61,6 +66,9 @@ export function RecoverPassword() {
   return (
     <View style={styles.root}>
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <SafeAreaView style={styles.safeTop} edges={['top']}>
+          <RecordsHeader title="Recuperar contraseña" onBack={() => navigation.goBack()} titleNumberOfLines={2} />
+        </SafeAreaView>
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -112,6 +120,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.textMuted,
   },
   safe: { flex: 1 },
+  safeTop: { backgroundColor: COLORS.white },
   flex: { flex: 1 },
   scroll: { flexGrow: 1 },
   formContainer: {

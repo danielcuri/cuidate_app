@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { StackScreenProps } from '@react-navigation/stack';
 import RenderHTML from 'react-native-render-html';
 import { useWindowDimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../../theme/colors';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { learningService } from '../../services/LearningService';
@@ -13,6 +14,7 @@ import type { Questions } from '../../interfaces/learning';
 import { RadioGroup } from '../../components/learning/RadioGroup';
 import { Checkbox } from '../../components/learning/Checkbox';
 import { useLearningStore } from '../../stores/learningStore';
+import { RecordsHeader } from '../../components/shared/RecordsHeader';
 
 type Props = StackScreenProps<RootStackParamList, 'Exam'>;
 
@@ -30,6 +32,10 @@ export function Exam({ navigation, route }: Props) {
   const startTimeRef = useRef<Date>(new Date());
 
   const [answers, setAnswers] = useState<Record<number, string | string[]>>({});
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   useEffect(() => {
     startTimeRef.current = new Date();
@@ -96,9 +102,11 @@ export function Exam({ navigation, route }: Props) {
 
   return (
     <View style={styles.page}>
+      <SafeAreaView style={styles.safeTop} edges={['top']}>
+        <RecordsHeader title="Examen" onBack={() => navigation.goBack()} />
+      </SafeAreaView>
       <View style={styles.top}>
         <View style={styles.topLeft}>
-          <Text style={styles.title}>Examen</Text>
           <Text style={styles.sub} numberOfLines={2}>
             {name}
           </Text>
@@ -176,6 +184,7 @@ export function Exam({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: COLORS.menuContentBg },
+  safeTop: { backgroundColor: COLORS.white },
   top: {
     padding: 16,
     backgroundColor: COLORS.white,
@@ -187,7 +196,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   topLeft: { flex: 1 },
-  title: { fontWeight: '900', fontSize: 16, color: COLORS.text },
   sub: { marginTop: 4, color: COLORS.textMuted, fontWeight: '800' },
   timerPill: { backgroundColor: COLORS.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },
   timerPillOff: { backgroundColor: COLORS.danger },

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import {
     ActivityIndicator,
     FlatList,
@@ -19,15 +19,18 @@ import { queryService } from "../../services/QueryService";
 import { userService } from "../../services/UserService";
 import type { Certificate } from "../../interfaces/learning";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { MenuHeader } from "@/components/shared/MenuHeader";
+import { RecordsHeader } from "../../components/shared/RecordsHeader";
 
 type Props = StackScreenProps<RootStackParamList, "Achievement">;
-const LOGO_LEFT = require("../../../assets/primero_seguro.jpg");
-const LOGO_RIGHT = require("../../../assets/pamolsa.jpg");
 export function Achievement(_props: Props) {
     const [loading, setLoading] = useState(true);
     const [certs, setCerts] = useState<Certificate[]>([]);
     const dni = userService.user.dni ?? "";
+
+    const navigation = _props.navigation;
+    useLayoutEffect(() => {
+        navigation.setOptions({ headerShown: false });
+    }, [navigation]);
 
     const load = useCallback(async () => {
         if (!dni) return;
@@ -54,7 +57,10 @@ export function Achievement(_props: Props) {
     return (
         <View style={styles.page}>
             <SafeAreaView style={styles.safeTop} edges={["top"]}>
-                <MenuHeader logoLeft={LOGO_LEFT} logoRight={LOGO_RIGHT} />
+                <RecordsHeader
+                    title="Logros"
+                    onBack={() => navigation.goBack()}
+                />
             </SafeAreaView>
             {loading ? (
                 <View style={styles.center}>

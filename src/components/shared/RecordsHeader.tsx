@@ -17,9 +17,17 @@ export type RecordsHeaderProps = {
   title: string;
   onBack: () => void;
   style?: ViewStyle;
+  titleNumberOfLines?: number;
+  showBackButton?: boolean;
 };
 
-export function RecordsHeader({ title, onBack, style }: RecordsHeaderProps) {
+export function RecordsHeader({
+  title,
+  onBack,
+  style,
+  titleNumberOfLines = 1,
+  showBackButton = true,
+}: RecordsHeaderProps) {
   return (
     <View style={[styles.headerWrap, style]}>
       <View style={styles.logoRow}>
@@ -34,10 +42,14 @@ export function RecordsHeader({ title, onBack, style }: RecordsHeaderProps) {
         <View style={[styles.stripSeg, { backgroundColor: COLORS.successGreen }]} />
       </View>
       <View style={styles.toolbar}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn} hitSlop={12}>
-          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text style={styles.toolbarTitle} numberOfLines={1}>
+        {showBackButton ? (
+          <TouchableOpacity onPress={onBack} style={styles.backBtn} hitSlop={12}>
+            <Ionicons name="chevron-back" size={22} color={COLORS.text} />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.backBtnSpacer} />
+        )}
+        <Text style={styles.toolbarTitle} numberOfLines={titleNumberOfLines}>
           {title}
         </Text>
         <View style={styles.backBtnSpacer} />

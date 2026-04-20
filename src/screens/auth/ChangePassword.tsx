@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -18,6 +18,7 @@ import { userService } from '../../services/UserService';
 import { loadingService } from '../../services/LoadingService';
 import { queryService } from '../../services/QueryService';
 import type { AuthStackParamList } from '../../navigation/AuthNavigator';
+import { RecordsHeader } from '../../components/shared/RecordsHeader';
 
 export function ChangePassword() {
   const navigation = useNavigation<StackNavigationProp<AuthStackParamList, 'ChangePassword'>>();
@@ -25,6 +26,10 @@ export function ChangePassword() {
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [userId, setUserId] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   useEffect(() => {
     (async () => {
@@ -69,6 +74,9 @@ export function ChangePassword() {
   return (
     <View style={styles.page}>
       <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <SafeAreaView style={styles.safeTop} edges={['top']}>
+          <RecordsHeader title="Cambiar contraseña" onBack={() => navigation.goBack()} titleNumberOfLines={2} />
+        </SafeAreaView>
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -126,6 +134,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.changePasswordBg,
   },
   safe: { flex: 1 },
+  safeTop: { backgroundColor: COLORS.white },
   flex: { flex: 1 },
   scroll: { padding: 16 },
   grid: {

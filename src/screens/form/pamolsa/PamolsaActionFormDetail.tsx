@@ -1,14 +1,18 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RouteProp } from '@react-navigation/native';
-import { useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../../../theme/colors';
 import type { RootStackParamList } from '../../../navigation/AppNavigator';
 import type { Action } from '../../../interfaces/forms';
 import { formService } from '../../../services/FormService';
 import { queryService } from '../../../services/QueryService';
+import { RecordsHeader } from '../../../components/shared/RecordsHeader';
 
 type Route = RouteProp<RootStackParamList, 'PamolsaActionFormDetail'>;
+type Nav = StackNavigationProp<RootStackParamList, 'PamolsaActionFormDetail'>;
 
 function parseActionDetailPayload(res: unknown): Action | null {
   if (res == null || typeof res !== 'object') {
@@ -32,9 +36,14 @@ function parseActionDetailPayload(res: unknown): Action | null {
 
 export function PamolsaActionFormDetail() {
   const route = useRoute<Route>();
+  const navigation = useNavigation<Nav>();
   const { actionId } = route.params;
   const [loading, setLoading] = useState(true);
   const [action, setAction] = useState<Action | null>(null);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const fallback = useMemo(() => {
     const list = (formService.actions as Action[]) ?? [];
@@ -74,16 +83,26 @@ export function PamolsaActionFormDetail() {
 
   if (loading && !action) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={styles.page}>
+        <SafeAreaView style={styles.safeTop} edges={['top']}>
+          <RecordsHeader title="Detalle hallazgo" onBack={() => navigation.goBack()} />
+        </SafeAreaView>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
       </View>
     );
   }
 
   if (!action) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.muted}>No se pudo cargar el detalle.</Text>
+      <View style={styles.page}>
+        <SafeAreaView style={styles.safeTop} edges={['top']}>
+          <RecordsHeader title="Detalle hallazgo" onBack={() => navigation.goBack()} />
+        </SafeAreaView>
+        <View style={styles.center}>
+          <Text style={styles.muted}>No se pudo cargar el detalle.</Text>
+        </View>
       </View>
     );
   }
@@ -91,48 +110,55 @@ export function PamolsaActionFormDetail() {
   const photos = (action.photos_url as unknown as string[]) ?? [];
 
   return (
-    <ScrollView contentContainerStyle={styles.body}>
-      <Text style={styles.k}>Fecha</Text>
-      <Text style={styles.v}>{action.created_at ?? '—'}</Text>
+    <View style={styles.page}>
+      <SafeAreaView style={styles.safeTop} edges={['top']}>
+        <RecordsHeader title="Detalle hallazgo" onBack={() => navigation.goBack()} />
+      </SafeAreaView>
+      <ScrollView contentContainerStyle={styles.body}>
+        <Text style={styles.k}>Fecha</Text>
+        <Text style={styles.v}>{action.created_at ?? '—'}</Text>
 
-      <Text style={styles.k}>Usuario</Text>
-      <Text style={styles.v}>{action.action?.user_id ?? action.responsable ?? '—'}</Text>
+        <Text style={styles.k}>Usuario</Text>
+        <Text style={styles.v}>{action.action?.user_id ?? action.responsable ?? '—'}</Text>
 
-      <Text style={styles.k}>Sede</Text>
-      <Text style={styles.v}>{action.corresponds ?? '—'}</Text>
+        <Text style={styles.k}>Sede</Text>
+        <Text style={styles.v}>{action.corresponds ?? '—'}</Text>
 
-      <Text style={styles.k}>Área</Text>
-      <Text style={styles.v}>{action.action?.area_id ?? '—'}</Text>
+        <Text style={styles.k}>Área</Text>
+        <Text style={styles.v}>{action.action?.area_id ?? '—'}</Text>
 
-      <Text style={styles.k}>Descripción</Text>
-      <Text style={styles.v}>{action.findings ?? '—'}</Text>
+        <Text style={styles.k}>Descripción</Text>
+        <Text style={styles.v}>{action.findings ?? '—'}</Text>
 
-      <Text style={styles.k}>Nivel de riesgo</Text>
-      <Text style={styles.v}>{action.risk_level ?? action.risk ?? '—'}</Text>
+        <Text style={styles.k}>Nivel de riesgo</Text>
+        <Text style={styles.v}>{action.risk_level ?? action.risk ?? '—'}</Text>
 
-      <Text style={styles.k}>Acción propuesta</Text>
-      <Text style={styles.v}>{action.proposed_actions ?? '—'}</Text>
+        <Text style={styles.k}>Acción propuesta</Text>
+        <Text style={styles.v}>{action.proposed_actions ?? '—'}</Text>
 
-      <Text style={styles.k}>Responsable</Text>
-      <Text style={styles.v}>{action.responsable ?? '—'}</Text>
+        <Text style={styles.k}>Responsable</Text>
+        <Text style={styles.v}>{action.responsable ?? '—'}</Text>
 
-      <Text style={styles.k}>Fecha propuesta</Text>
-      <Text style={styles.v}>{action.proposed_date ?? '—'}</Text>
+        <Text style={styles.k}>Fecha propuesta</Text>
+        <Text style={styles.v}>{action.proposed_date ?? '—'}</Text>
 
-      <Text style={styles.section}>Fotos</Text>
-      <View style={styles.photoGrid}>
-        {photos.slice(0, 2).map((p, idx) => (
-          <View key={`${idx}-${p}`} style={styles.photoBox}>
-            <Image source={{ uri: p }} style={styles.photo} />
-          </View>
-        ))}
-        {!photos.length ? <Text style={styles.muted}>Sin fotos</Text> : null}
-      </View>
-    </ScrollView>
+        <Text style={styles.section}>Fotos</Text>
+        <View style={styles.photoGrid}>
+          {photos.slice(0, 2).map((p, idx) => (
+            <View key={`${idx}-${p}`} style={styles.photoBox}>
+              <Image source={{ uri: p }} style={styles.photo} />
+            </View>
+          ))}
+          {!photos.length ? <Text style={styles.muted}>Sin fotos</Text> : null}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  page: { flex: 1, backgroundColor: COLORS.menuContentBg },
+  safeTop: { backgroundColor: COLORS.white },
   body: { padding: 16, paddingBottom: 40, backgroundColor: COLORS.menuContentBg, flexGrow: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   muted: { color: COLORS.textMuted, textAlign: 'center' },

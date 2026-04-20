@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Dimensions,
   Image,
   Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -26,33 +28,70 @@ type Props = {
  * Recorte avanzado: // TODO: VERIFICAR (Ionic / crop plugin).
  */
 export function EditPhotoModal({ visible, imageUri, onClose, onApply }: Props) {
-  const [preview, setPreview] = useState<string | null>(imageUri);
+  const [preview, setPreview] = useState<string | null>(() =>
+    imageUri && imageUri.length > 0 ? imageUri : null,
+  );
+
+  const previewMaxH = Math.min(Dimensions.get('window').height * 0.42, 380);
 
   useEffect(() => {
     if (visible) {
-      setPreview(imageUri);
+      setPreview(imageUri && imageUri.length > 0 ? imageUri : null);
     }
   }, [visible, imageUri]);
 
   const pickCamera = async () => {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) {
-      alertService.present('Cámara', 'Se necesita permiso para usar la cámara.');
-      return;
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        alertService.present('Cámara', 'Se necesita permiso para usar la cámara.');
+        return;
+      }
+      const res = await ImagePicker.launchCameraAsync({
+        base64: true,
+        quality: 0.75,
+      });
+      if (res.canceled || !res.assets?.[0]) {
+        return;
+      }
+      const a = res.assets[0];
+      if (a.base64) {
+        const mime = a.mimeType ?? 'image/jpeg';
+        setPreview(`data:${mime};base64,${a.base64}`);
+      } else if (a.uri) {
+        setPreview(a.uri);
+      }
+    } catch (e) {
+      console.log(e);
+      alertService.present('Foto', 'No se pudo abrir la cámara. Revise permisos.');
     }
-    const res = await ImagePicker.launchCameraAsync({
-      base64: true,
-      quality: 0.75,
-    });
-    if (res.canceled || !res.assets?.[0]) {
-      return;
-    }
-    const a = res.assets[0];
-    if (a.base64) {
-      const mime = a.mimeType ?? 'image/jpeg';
-      setPreview(`data:${mime};base64,${a.base64}`);
-    } else if (a.uri) {
-      setPreview(a.uri);
+  };
+
+  const pickGallery = async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        alertService.present('Galería', 'Se necesita permiso para acceder a tus fotos.');
+        return;
+      }
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        base64: true,
+        quality: 0.75,
+      });
+      if (res.canceled || !res.assets?.[0]) {
+        return;
+      }
+      const a = res.assets[0];
+      if (a.base64) {
+        const mime = a.mimeType ?? 'image/jpeg';
+        setPreview(`data:${mime};base64,${a.base64}`);
+      } else if (a.uri) {
+        setPreview(a.uri);
+      }
+    } catch (e) {
+      console.log(e);
+      alertService.present('Galería', 'No se pudo abrir la galería. Revise permisos.');
     }
   };
 
@@ -77,16 +116,32 @@ export function EditPhotoModal({ visible, imageUri, onClose, onApply }: Props) {
             <Text style={styles.linkBold}>Usar</Text>
           </TouchableOpacity>
         </View>
-        <View style={styles.body}>
+        <ScrollView
+          style={styles.bodyScroll}
+          contentContainerStyle={styles.bodyContent}
+          keyboardShouldPersistTaps="handled"
+        >
           {preview ? (
-            <Image source={{ uri: preview }} style={styles.img} resizeMode="contain" />
+            <Image
+              source={{ uri: preview }}
+              style={[styles.img, { maxHeight: previewMaxH }]}
+              resizeMode="contain"
+            />
           ) : (
-            <Text style={styles.hint}>Sin imagen</Text>
+            <Text style={styles.hint}>Sin imagen — elija cámara o galería</Text>
           )}
-          <TouchableOpacity style={styles.btn} onPress={pickCamera}>
-            <Text style={styles.btnText}>Tomar otra foto</Text>
-          </TouchableOpacity>
-        </View>
+          <View style={styles.actionsRow}>
+            <TouchableOpacity
+              style={[styles.btn, styles.action, styles.actionFirst]}
+              onPress={pickCamera}
+            >
+              <Text style={styles.btnText}>Tomar foto</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.btn, styles.action]} onPress={pickGallery}>
+              <Text style={styles.btnText}>Elegir de galería</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </SafeAreaView>
     </Modal>
   );
@@ -105,9 +160,33 @@ const styles = StyleSheet.create({
   title: { fontWeight: '700', color: COLORS.text, fontSize: 17 },
   link: { color: COLORS.primary, fontSize: 16 },
   linkBold: { color: COLORS.primary, fontWeight: '700', fontSize: 16 },
-  body: { flex: 1, padding: 16 },
-  img: { flex: 1, width: '100%', backgroundColor: COLORS.lightGray, borderRadius: 8 },
-  hint: { textAlign: 'center', marginTop: 40, color: COLORS.textMuted },
+  bodyScroll: { flex: 1 },
+  bodyContent: {
+    padding: 16,
+    paddingBottom: 28,
+    flexGrow: 1,
+  },
+  /** Sin `flex:1` en la imagen: si no, en pantallas bajas o modal sobre modal los botones quedan fuera de vista. */
+  img: {
+    width: '100%',
+    minHeight: 160,
+    backgroundColor: COLORS.lightGray,
+    borderRadius: 8,
+  },
+  hint: {
+    textAlign: 'center',
+    marginTop: 24,
+    marginBottom: 8,
+    paddingVertical: 32,
+    color: COLORS.textMuted,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    marginTop: 16,
+  },
+  action: { flex: 1 },
+  actionFirst: { marginRight: 10 },
   btn: {
     marginTop: 16,
     backgroundColor: COLORS.primary,

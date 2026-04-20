@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
     FlatList,
     RefreshControl,
@@ -7,6 +7,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,6 +19,7 @@ import { alertService } from "../../services/AlertService";
 import type { RootStackParamList } from "../../navigation/AppNavigator";
 import type { Forms } from "../../interfaces/forms";
 import { useFormStore } from "../../stores/formStore";
+import { RecordsHeader } from "../../components/shared/RecordsHeader";
 
 type Nav = StackNavigationProp<RootStackParamList, "Formats">;
 
@@ -26,6 +28,10 @@ export function Formats() {
     const showPamolsa = useFormStore((s) => s.showPamolsa);
     const [refreshing, setRefreshing] = useState(false);
     const lastRefreshRef = useRef(0);
+
+    useLayoutEffect(() => {
+        navigation.setOptions({ headerShown: false });
+    }, [navigation]);
 
     const forms = (formService.forms as Forms[]) ?? [];
     const pamolsaItem = useMemo(
@@ -94,6 +100,12 @@ export function Formats() {
 
     return (
         <View style={styles.page}>
+            <SafeAreaView style={styles.safeTop} edges={["top"]}>
+                <RecordsHeader
+                    title="Formatos"
+                    onBack={() => navigation.goBack()}
+                />
+            </SafeAreaView>
             <FlatList
                 data={formatsList}
                 keyExtractor={(f) => String(f.id)}
@@ -143,6 +155,9 @@ export function Formats() {
 
 const styles = StyleSheet.create({
     page: { flex: 1, backgroundColor: COLORS.menuContentBg },
+    safeTop: {
+        backgroundColor: COLORS.white,
+    },
     row: {
         flexDirection: "row",
         alignItems: "center",

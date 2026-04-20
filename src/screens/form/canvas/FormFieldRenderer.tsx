@@ -37,6 +37,7 @@ type Props = {
   /** Índice para galería tipo 16; null si es foto única / otro flujo */
   onEditPhoto: (fieldId: number, uri: string | null, index?: number) => void;
   onLaunchCamera: (fieldId: number) => void;
+  onLaunchGallery?: (fieldId: number) => void;
 };
 
 function selectItems(field: FormDesign, dbOptions: Record<number, unknown[]>): VirtualSelectItem[] {
@@ -75,6 +76,7 @@ export function FormFieldRenderer({
   onOpenTable,
   onEditPhoto,
   onLaunchCamera,
+  onLaunchGallery,
 }: Props) {
   const [showDate, setShowDate] = useState(false);
   const p = field.properties;
@@ -372,9 +374,19 @@ export function FormFieldRenderer({
               </TouchableOpacity>
             ))}
           </ScrollView>
-          <TouchableOpacity style={styles.secondaryBtn} onPress={() => onLaunchCamera(field.id)}>
-            <Text style={styles.secondaryBtnText}>Tomar foto</Text>
-          </TouchableOpacity>
+          <View style={styles.photoActionsRow}>
+            <TouchableOpacity style={[styles.secondaryBtn, styles.photoAction]} onPress={() => onLaunchCamera(field.id)}>
+              <Text style={styles.secondaryBtnText}>Tomar foto</Text>
+            </TouchableOpacity>
+            {onLaunchGallery ? (
+              <TouchableOpacity
+                style={[styles.secondaryBtn, styles.photoAction]}
+                onPress={() => onLaunchGallery(field.id)}
+              >
+                <Text style={styles.secondaryBtnText}>Elegir de galería</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
         </View>
       );
     }
@@ -467,6 +479,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.lightGray,
   },
   photoRow: { flexGrow: 0, marginBottom: 8 },
+  photoActionsRow: { flexDirection: 'row', gap: 8 },
+  photoAction: { flex: 1, marginTop: 0 },
   segScroll: { flexGrow: 0 },
   segChip: {
     paddingHorizontal: 14,

@@ -1,4 +1,9 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, {
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useState,
+} from "react";
 import {
     Image,
     RefreshControl,
@@ -15,7 +20,6 @@ import { useNavigation } from "@react-navigation/native";
 import { COLORS } from "../../theme/colors";
 import { Card } from "../../components/shared/Card";
 import { MenuFooter } from "../../components/shared/MenuFooter";
-import { MenuHeader } from "../../components/shared/MenuHeader";
 import { formService } from "../../services/FormService";
 import { loadingService } from "../../services/LoadingService";
 import { queryService } from "../../services/QueryService";
@@ -23,10 +27,9 @@ import { userService } from "../../services/UserService";
 import type { RootStackParamList } from "../../navigation/AppNavigator";
 import type { FormsList } from "../../interfaces/forms";
 import { useFormStore } from "../../stores/formStore";
+import { RecordsHeader } from "../../components/shared/RecordsHeader";
 
 type Nav = NavigationProp<RootStackParamList>;
-const LOGO_LEFT = require("../../../assets/primero_seguro.jpg");
-const LOGO_RIGHT = require("../../../assets/pamolsa.jpg");
 const PORTRAIT = require("../../../assets/forms/portrait_forms.png");
 type Entry = {
     key: string;
@@ -83,6 +86,10 @@ export function FormMenu() {
     const navigation = useNavigation<Nav>();
     const [refreshing, setRefreshing] = useState(false);
     const showPamolsa = useFormStore((s) => s.showPamolsa);
+
+    useLayoutEffect(() => {
+        navigation.setOptions({ headerShown: false });
+    }, [navigation]);
 
     const loadData = useCallback(async (event?: { end?: () => void }) => {
         await loadingService.present();
@@ -175,7 +182,10 @@ export function FormMenu() {
     return (
         <View style={styles.page}>
             <SafeAreaView style={styles.safeTop} edges={["top"]}>
-                <MenuHeader logoLeft={LOGO_LEFT} logoRight={LOGO_RIGHT} />
+                <RecordsHeader
+                    title={"Bienvenido " + (userService.user.name ?? "Usuario")}
+                    onBack={() => navigation.goBack()}
+                />
             </SafeAreaView>
             <ScrollView
                 style={styles.scroll}

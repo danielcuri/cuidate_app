@@ -28,6 +28,7 @@ import { loadingService } from '../../services/LoadingService';
 import { alertService } from '../../services/AlertService';
 import { queryService } from '../../services/QueryService';
 import { EditPhotoModal } from './canvas/EditPhotoModal';
+import { RecordsHeader } from '../../components/shared/RecordsHeader';
 
 type Route = RouteProp<RootStackParamList, 'CreateEffectiveness'>;
 type Nav = StackNavigationProp<RootStackParamList, 'CreateEffectiveness'>;
@@ -268,14 +269,14 @@ export function CreateEffectiveness() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.page}>
+        <SafeAreaView style={styles.safeTop} edges={['top']}>
+          <RecordsHeader title="Eficacia" onBack={() => navigation.goBack()} />
+        </SafeAreaView>
         <ScrollView
           contentContainerStyle={styles.scrollBody}
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.headerContainer}>
-            <View style={styles.titleWrap}>
-              <Text style={styles.formName}>Formulario de eficacia</Text>
-            </View>
             <View style={styles.bullets}>
               <View style={[styles.bullet, styles.bulletActive]} />
             </View>
@@ -515,6 +516,7 @@ export function CreateEffectiveness() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.menuContentBg },
+  safeTop: { backgroundColor: COLORS.white },
   page: { flex: 1 },
   scrollBody: { paddingBottom: 24, flexGrow: 1 },
   headerContainer: {
@@ -522,12 +524,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 8,
     backgroundColor: COLORS.menuContentBg,
-  },
-  titleWrap: { alignItems: 'center' },
-  formName: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: COLORS.text,
   },
   bullets: {
     flexDirection: 'row',

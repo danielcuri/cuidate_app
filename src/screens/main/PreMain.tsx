@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useLayoutEffect } from "react";
 import {
     ScrollView,
     StyleSheet,
@@ -13,8 +13,8 @@ import { CommonActions, useNavigation } from "@react-navigation/native";
 import { COLORS } from "../../theme/colors";
 import { userService } from "../../services/UserService";
 import type { RootStackParamList } from "../../navigation/AppNavigator";
-import { MenuHeader } from "@/components/shared/MenuHeader";
 import type { User } from "../../interfaces/login";
+import { RecordsHeader } from "../../components/shared/RecordsHeader";
 
 type PreMainNav = StackNavigationProp<RootStackParamList, "PreMain">;
 
@@ -49,9 +49,6 @@ function projectIdFromItem(o: Record<string, unknown>): number | null {
     return null;
 }
 
-const LOGO_LEFT = require("../../../assets/primero_seguro.jpg");
-const LOGO_RIGHT = require("../../../assets/pamolsa.jpg");
-
 type ModuleBtnStyle = "btnForm" | "btnMedical" | "btnLearning";
 
 const MODULE_UI: Record<
@@ -65,19 +62,19 @@ const MODULE_UI: Record<
 > = {
     FormMenu: {
         title: "Formularios",
-        hint: "Acceder a formularios",
+        hint: "Módulo para registrar inspecciones de seguridad y hacer seguimiento a las acciones propuestas",
         icon: "document-text-outline",
         btnStyle: "btnForm",
     },
     MedicalMenu: {
         title: "Medical",
-        hint: "Salud y reposos",
+        hint: "Módulo para el registro de descansos médicos",
         icon: "medical-outline",
         btnStyle: "btnMedical",
     },
     LearningMenu: {
         title: "Learning",
-        hint: "Cursos y certificados",
+        hint: "Módulo para realizar capacitaiones virtuales",
         icon: "school-outline",
         btnStyle: "btnLearning",
     },
@@ -131,6 +128,10 @@ export function PreMain() {
     const navigation = useNavigation<PreMainNav>();
     const modules = menuRowsFromUser(userService.user as Partial<User>);
 
+    useLayoutEffect(() => {
+        navigation.setOptions({ headerShown: false });
+    }, [navigation]);
+
     const logout = async () => {
         await userService.logout();
         navigation.dispatch(
@@ -144,7 +145,11 @@ export function PreMain() {
     return (
         <View style={styles.page}>
             <SafeAreaView style={styles.safeTop} edges={["top"]}>
-                <MenuHeader logoLeft={LOGO_LEFT} logoRight={LOGO_RIGHT} />
+                <RecordsHeader
+                    title={userService.user.name ?? "Usuario"}
+                    onBack={() => {}}
+                    showBackButton={false}
+                />
             </SafeAreaView>
 
             <ScrollView
@@ -164,10 +169,7 @@ export function PreMain() {
                         return (
                             <TouchableOpacity
                                 key={mod.route}
-                                style={[
-                                    styles.cardBtn,
-                                    styles[meta.btnStyle],
-                                ]}
+                                style={[styles.cardBtn, styles[meta.btnStyle]]}
                                 onPress={() => navigation.navigate(mod.route)}
                                 activeOpacity={0.88}
                             >

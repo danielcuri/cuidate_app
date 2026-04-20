@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
@@ -27,6 +27,7 @@ import { userService } from '@/services/UserService';
 import { loadingService } from '@/services/LoadingService';
 import { queryService } from '@/services/QueryService';
 import type { GeneralAnswer } from '@/interfaces/learning';
+import { RecordsHeader } from '@/components/shared/RecordsHeader';
 
 const TOPIC_OPTIONS = [
   { value: 'PAMOLSA-Faucett', label: 'PAMOLSA Tópico Faucett' },
@@ -78,6 +79,10 @@ export function FormRest() {
       date_init_topic: now,
     }));
   }, []);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
 
   const topicLabel = useMemo(() => {
     const o = TOPIC_OPTIONS.find((t) => t.value === formData.topic);
@@ -220,13 +225,14 @@ export function FormRest() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
       <SafeAreaView style={styles.page} edges={['top']}>
+        <SafeAreaView style={styles.safeTop} edges={['top']}>
+          <RecordsHeader title="Descanso médico" onBack={() => navigation.goBack()} />
+        </SafeAreaView>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.screenTitle}>Descanso médico</Text>
-
           <Text style={styles.label}>Planta / Local *</Text>
           <TouchableOpacity
             style={[styles.fieldBtn, err('topic')]}
@@ -370,15 +376,9 @@ function PhotoRow({
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: COLORS.menuContentBg },
+  safeTop: { backgroundColor: COLORS.white },
   scroll: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 24 },
-  screenTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: COLORS.text,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
   label: { fontSize: 13, color: COLORS.textLabel, marginBottom: 6, marginTop: 10 },
   input: {
     borderWidth: 1,

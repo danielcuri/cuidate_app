@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
   ScrollView,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -23,6 +24,7 @@ import { alertService } from '../../../services/AlertService';
 import { VirtualSelect, type VirtualSelectItem } from '../../../components/shared/VirtualSelect';
 import { userService } from '../../../services/UserService';
 import { SignaturePad } from '../../../components/shared/SignaturePad';
+import { RecordsHeader } from '../../../components/shared/RecordsHeader';
 import {
   PamolsaActionFormDetailModal,
   type PamolsaActionDetailRowType1,
@@ -297,6 +299,10 @@ export function PamolsaActionForm() {
     }
   }, [route.params?.actionHeaderId, sig]);
 
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
+
   const locals = useMemo(() => {
     const raw = (formService.locals as { id: number | string; name: string }[]) ?? [];
     return raw.map((l) => ({ id: l.id, name: l.name })) as VirtualSelectItem[];
@@ -461,9 +467,9 @@ export function PamolsaActionForm() {
 
   return (
     <View style={styles.page}>
-      <View style={styles.headerBar}>
-        <Text style={styles.headerTitle}>Creación de acción</Text>
-      </View>
+      <SafeAreaView style={styles.safeTop} edges={['top']}>
+        <RecordsHeader title="Hallazgo SST" onBack={() => navigation.goBack()} />
+      </SafeAreaView>
       <ScrollView contentContainerStyle={styles.body}>
         <View style={styles.stepIndicator}>
           {stepTitles.map((label, i) => (
@@ -823,8 +829,7 @@ export function PamolsaActionForm() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: COLORS.menuContentBg },
-  headerBar: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
-  headerTitle: { fontSize: 14, fontWeight: '800', color: COLORS.text, textAlign: 'center' },
+  safeTop: { backgroundColor: COLORS.white },
   body: { padding: 16, paddingBottom: 40 },
   stepIndicator: {
     flexDirection: 'row',
