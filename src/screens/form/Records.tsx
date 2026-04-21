@@ -8,7 +8,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -33,6 +36,7 @@ function parseRecordStatus(status: FormsRecords['status']): number {
 }
 
 export function Records() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const [items, setItems] = useState<FormsRecords[]>([]);
   /** Cursor `last_id` para la siguiente página (paridad `lastIteraction` Ionic). */
@@ -195,7 +199,10 @@ export function Records() {
       </SafeAreaView>
       <FlatList
         style={styles.list}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: 24 + insets.bottom },
+        ]}
         data={items}
         keyExtractor={(r) => String(r.id)}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}

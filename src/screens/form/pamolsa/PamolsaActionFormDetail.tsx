@@ -108,6 +108,10 @@ export function PamolsaActionFormDetail() {
   }
 
   const photos = (action.photos_url as unknown as string[]) ?? [];
+  const photosToShow = photos
+    .slice(0, 2)
+    .map((p) => String(p).trim())
+    .filter(Boolean);
 
   return (
     <View style={styles.page}>
@@ -144,12 +148,14 @@ export function PamolsaActionFormDetail() {
 
         <Text style={styles.section}>Fotos</Text>
         <View style={styles.photoGrid}>
-          {photos.slice(0, 2).map((p, idx) => (
+          {photosToShow.map((p, idx) => (
             <View key={`${idx}-${p}`} style={styles.photoBox}>
               <Image source={{ uri: p }} style={styles.photo} />
             </View>
           ))}
-          {!photos.length ? <Text style={styles.muted}>Sin fotos</Text> : null}
+          {!photosToShow.length ? (
+            <Text style={styles.muted}>Sin fotos</Text>
+          ) : null}
         </View>
       </ScrollView>
     </View>

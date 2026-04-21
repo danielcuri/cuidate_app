@@ -10,24 +10,40 @@ import {
   View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { COLORS } from '../../../theme/colors';
 import { alertService } from '../../../services/AlertService';
 
-type Props = {
+export type EditPhotoPanelProps = {
   visible: boolean;
   /** `data:image/...;base64,...` o URI file */
   imageUri: string | null;
   onClose: () => void;
   /** Base64 sin prefijo o con prefijo data URL — según backend Ionic */
   onApply: (base64OrDataUrl: string) => void;
+  /**
+   * Dentro de otro `Modal` con overlay absoluto (p. ej. Pamolsa detalle): el
+   * contenido debe respetar insets con `useSafeAreaInsets` — un `SafeAreaView`
+   * anidado no aplica bien sobre vistas absolutas.
+   */
+  embedded?: boolean;
 };
 
 /**
  * Paridad modal `EditPhoto`: reemplazar / retomar foto.
  * Recorte avanzado: // TODO: VERIFICAR (Ionic / crop plugin).
  */
-export function EditPhotoModal({ visible, imageUri, onClose, onApply }: Props) {
+export function EditPhotoPanel({
+  visible,
+  imageUri,
+  onClose,
+  onApply,
+  embedded = false,
+}: EditPhotoPanelProps) {
+  const insets = useSafeAreaInsets();
   const [preview, setPreview] = useState<string | null>(() =>
     imageUri && imageUri.length > 0 ? imageUri : null,
   );
@@ -104,45 +120,87 @@ export function EditPhotoModal({ visible, imageUri, onClose, onApply }: Props) {
     onClose();
   };
 
-  return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose}>
-            <Text style={styles.link}>Cerrar</Text>
+  if (!visible) {
+    return null;
+  }
+
+  const shell = (
+    <>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onClose}>
+          <Text style={styles.link}>Cerrar</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>Foto</Text>
+        <TouchableOpacity onPress={apply}>
+          <Text style={styles.linkBold}>Usar</Text>
+        </TouchableOpacity>
+      </View>
+      <ScrollView
+        style={styles.bodyScroll}
+        contentContainerStyle={styles.bodyContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {preview ? (
+          <Image
+            source={{ uri: preview }}
+            style={[styles.img, { maxHeight: previewMaxH }]}
+            resizeMode="contain"
+          />
+        ) : (
+          <Text style={styles.hint}>Sin imagen — elija cámara o galería</Text>
+        )}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={[styles.btn, styles.action, styles.actionFirst]}
+            onPress={pickCamera}
+          >
+            <Text style={styles.btnText}>Tomar foto</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Foto</Text>
-          <TouchableOpacity onPress={apply}>
-            <Text style={styles.linkBold}>Usar</Text>
+          <TouchableOpacity style={[styles.btn, styles.action]} onPress={pickGallery}>
+            <Text style={styles.btnText}>Elegir de galería</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView
-          style={styles.bodyScroll}
-          contentContainerStyle={styles.bodyContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          {preview ? (
-            <Image
-              source={{ uri: preview }}
-              style={[styles.img, { maxHeight: previewMaxH }]}
-              resizeMode="contain"
-            />
-          ) : (
-            <Text style={styles.hint}>Sin imagen — elija cámara o galería</Text>
-          )}
-          <View style={styles.actionsRow}>
-            <TouchableOpacity
-              style={[styles.btn, styles.action, styles.actionFirst]}
-              onPress={pickCamera}
-            >
-              <Text style={styles.btnText}>Tomar foto</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.btn, styles.action]} onPress={pickGallery}>
-              <Text style={styles.btnText}>Elegir de galería</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </SafeAreaView>
+      </ScrollView>
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <View
+        style={[
+          styles.safe,
+          {
+            paddingTop: insets.top,
+            paddingBottom: insets.bottom,
+          },
+        ]}
+      >
+        {shell}
+      </View>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      {shell}
+    </SafeAreaView>
+  );
+}
+
+export function EditPhotoModal({
+  visible,
+  imageUri,
+  onClose,
+  onApply,
+}: Omit<EditPhotoPanelProps, 'embedded'>) {
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <EditPhotoPanel
+        visible={visible}
+        imageUri={imageUri}
+        onClose={onClose}
+        onApply={onApply}
+      />
     </Modal>
   );
 }

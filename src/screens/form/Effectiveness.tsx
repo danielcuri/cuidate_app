@@ -14,7 +14,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -129,6 +132,7 @@ function EffectivenessPamolsaCard({
 }
 
 export function Effectiveness() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const [items, setItems] = useState<EffectivenessListItem[]>([]);
   const [filters, setFilters] = useState<FilterFormValues>({});
@@ -272,7 +276,10 @@ export function Effectiveness() {
           }
           onEndReached={onEndReached}
           onEndReachedThreshold={0.35}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: 24 + insets.bottom },
+          ]}
           ListEmptyComponent={
             <Text style={styles.empty}>No hay registros de eficacia.</Text>
           }

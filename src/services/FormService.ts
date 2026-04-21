@@ -62,11 +62,7 @@ export class FormService {
         user_selected?: string;
         form_selected?: string;
     }): Promise<unknown> {
-        return queryService.executeQuery<unknown>(
-            "post",
-            "/getRecords",
-            data,
-        );
+        return queryService.executeQuery<unknown>("post", "/getRecords", data);
     }
 
     async getListActions(data: Record<string, unknown>): Promise<unknown> {
@@ -146,7 +142,11 @@ export class FormService {
     }
 
     listFormRecords(_data: unknown): Promise<unknown> {
-        return Promise.reject(new Error("Not implemented"));
+        return queryService.executeQuery<unknown>(
+            "post",
+            "/listFormRecords",
+            _data,
+        );
     }
 
     listActions(_data: unknown): Promise<unknown> {
@@ -155,9 +155,10 @@ export class FormService {
 
     saveDataPamolsaAction(_data: unknown): Promise<unknown> {
         // Endpoint según documento `Modificacion_Hallazgo_SST.md`
+        console.log(_data);
         return queryService.executeQuery<unknown>(
             "post",
-            "/pamolsa-action",
+            "/saveDataPamolsaAction",
             _data,
         );
     }

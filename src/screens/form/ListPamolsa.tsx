@@ -15,7 +15,10 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+    SafeAreaView,
+    useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RouteProp } from "@react-navigation/native";
@@ -158,6 +161,7 @@ const PamolsaInspectionCard = memo(function PamolsaInspectionCard({
 });
 
 export function ListPamolsa() {
+    const insets = useSafeAreaInsets();
     const navigation = useNavigation<Nav>();
     const route = useRoute<ListRoute>();
     const [items, setItems] = useState<PamolsaActionHeaderListItem[]>([]);
@@ -435,8 +439,11 @@ export function ListPamolsa() {
         [],
     );
 
-    // ✅ OPTIMIZADO: contentContainerStyle con useMemo - REFERENCIA ESTABLE
-    const contentContainerStyle = useMemo(() => styles.listContent, []);
+    // ✅ contentContainerStyle: padding inferior = lista + barra de navegación del sistema
+    const contentContainerStyle = useMemo(
+        () => [styles.listContent, { paddingBottom: 24 + insets.bottom }],
+        [insets.bottom],
+    );
 
     const activeAction = route.params?.active_action;
 

@@ -8,7 +8,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +28,7 @@ import { RecordsHeader } from '../../components/shared/RecordsHeader';
 type Nav = StackNavigationProp<RootStackParamList, 'Actions'>;
 
 export function Actions() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const [items, setItems] = useState<Action[]>([]);
   const [filters, setFilters] = useState<FilterFormValues>({});
@@ -265,7 +269,10 @@ export function Actions() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           onEndReached={onEndReached}
           onEndReachedThreshold={0.35}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: 24 + insets.bottom },
+          ]}
           ListEmptyComponent={<Text style={styles.empty}>No hay acciones.</Text>}
           ListFooterComponent={
             loadingMore ? (

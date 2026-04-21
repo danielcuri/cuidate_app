@@ -17,7 +17,10 @@ import * as ImagePicker from 'expo-image-picker';
 import type { RouteProp } from '@react-navigation/native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api_url } from '../../api/endpoints';
 import { COLORS } from '../../theme/colors';
@@ -83,6 +86,7 @@ function effectiveSubmitted(row: EffectivenessListItem | undefined): boolean {
 }
 
 export function CreateEffectiveness() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const { pamolsaActionDetailId, effectiveDate: effectiveDateParam } = route.params;
@@ -267,7 +271,7 @@ export function CreateEffectiveness() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.page}>
         <SafeAreaView style={styles.safeTop} edges={['top']}>
           <RecordsHeader title="Eficacia" onBack={() => navigation.goBack()} />
@@ -379,7 +383,7 @@ export function CreateEffectiveness() {
           </View>
         </ScrollView>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: 12 + insets.bottom }]}>
           <TouchableOpacity style={[styles.footBtn, styles.negative]} onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={18} color={COLORS.text} />
             <Text style={styles.footTxt}> Cancelar</Text>

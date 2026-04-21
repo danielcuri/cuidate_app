@@ -71,6 +71,15 @@ export function VirtualSelect({
     onClose();
   };
 
+  const onRowPress = (id: string | number) => {
+    if (multiple) {
+      toggle(id);
+    } else {
+      onConfirm([id]);
+      onClose();
+    }
+  };
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -81,9 +90,13 @@ export function VirtualSelect({
           <Text style={styles.title} numberOfLines={1}>
             {title}
           </Text>
-          <TouchableOpacity onPress={confirm} hitSlop={12}>
-            <Text style={styles.ok}>OK</Text>
-          </TouchableOpacity>
+          {multiple ? (
+            <TouchableOpacity onPress={confirm} hitSlop={12}>
+              <Text style={styles.ok}>OK</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.headerRightSpacer} />
+          )}
         </View>
         {searchable && (
           <TextInput
@@ -102,7 +115,7 @@ export function VirtualSelect({
             return (
               <TouchableOpacity
                 style={[styles.row, sel && styles.rowSel]}
-                onPress={() => toggle(item.id)}
+                onPress={() => onRowPress(item.id)}
               >
                 <Text style={styles.rowText}>{item.name}</Text>
                 {sel ? <Text style={styles.check}>✓</Text> : null}
@@ -131,6 +144,7 @@ const styles = StyleSheet.create({
   },
   cancel: { color: COLORS.primary, fontSize: 16 },
   title: { flex: 1, textAlign: 'center', fontWeight: '700', color: COLORS.text },
+  headerRightSpacer: { width: 64 },
   ok: { color: COLORS.primary, fontWeight: '700', fontSize: 16 },
   search: {
     margin: 12,

@@ -16,7 +16,7 @@ import {
     VirtualSelect,
     type VirtualSelectItem,
 } from "../../../components/shared/VirtualSelect";
-import { EditPhotoModal } from "../canvas/EditPhotoModal";
+import { EditPhotoPanel } from "../canvas/EditPhotoModal";
 import { alertService } from "../../../services/AlertService";
 
 type DetailType = 1 | 2;
@@ -28,6 +28,8 @@ export type PamolsaActionDetailRowType2 = {
     area_responsable_id?: string | number;
     proposed_date: string;
     approved?: number;
+    /** Paridad API / Ionic: fila anidada puede traer `effective_date`. */
+    effective_date?: string;
 };
 
 export type PamolsaActionDetailRowType1 = {
@@ -94,6 +96,13 @@ function mapDetailSubFromApi(raw: unknown): PamolsaActionDetailRowType2 {
     if (pd != null && pd !== "") {
         proposedDate = typeof pd === "string" ? pd : String(pd);
     }
+    const ed = r.effective_date;
+    const effectiveDate =
+        ed != null && ed !== ""
+            ? typeof ed === "string"
+                ? ed
+                : String(ed)
+            : undefined;
     return {
         id: typeof r.id === "number" ? r.id : undefined,
         proposed_actions: String(r.proposed_actions ?? ""),
@@ -107,6 +116,7 @@ function mapDetailSubFromApi(raw: unknown): PamolsaActionDetailRowType2 {
             | undefined,
         proposed_date: proposedDate || new Date().toISOString(),
         approved: typeof r.approved === "number" ? r.approved : undefined,
+        effective_date: effectiveDate,
     };
 }
 
@@ -199,6 +209,7 @@ function buildRow2FromProps(
             area_responsable: ci.area_responsable ?? areaResponsable ?? "",
             area_responsable_id: ci.area_responsable_id ?? areaResponsableId,
             approved: ci.approved,
+            effective_date: ci.effective_date,
         };
     }
     return {
@@ -370,8 +381,11 @@ export function PamolsaActionFormDetailModal({
             if (!row1.pamolsa_behavior_id) return "Seleccione el Hallazgo.";
             if (!row1.risk.trim()) return "Complete Riesgo.";
             if (!row1.risk_level) return "Seleccione Nivel de riesgo.";
-            if (!row1.photos_url?.[0] || !row1.photos_url?.[1])
-                return "Registre 2 fotos.";
+            {
+                const p0 = String(row1.photos_url?.[0] ?? "").trim();
+                const p1 = String(row1.photos_url?.[1] ?? "").trim();
+                if (!p0 && !p1) return "Registre al menos una foto.";
+            }
             // En Ionic, el detalle tipo 1 puede tener tabla (type2) dentro.
             return null;
         }
@@ -391,7 +405,7 @@ export function PamolsaActionFormDetailModal({
         onClose();
     };
 
-    /** Vacío como `null` para que `EditPhotoModal` hidrate bien la vista previa. */
+    /** Vacío como `null` para que `EditPhotoPanel` hidrate bien la vista previa. */
     let photoUri: string | null = null;
     if (type === 1 && editPhoto != null) {
         const u = row1.photos_url?.[editPhoto];
@@ -405,7 +419,7 @@ export function PamolsaActionFormDetailModal({
                     <TouchableOpacity onPress={onClose}>
                         <Text style={styles.link}>Cancelar</Text>
                     </TouchableOpacity>
-                    <Text style={styles.title} numberOfLines={1}>
+                    <Text style={styles.title} numberOfLines={2}>
                         {title}
                     </Text>
                     <TouchableOpacity onPress={submit}>
@@ -604,7 +618,7 @@ export function PamolsaActionFormDetailModal({
                                     onPress={() => addOrEditType2(-1)}
                                 >
                                     <Text style={styles.addBtnTxt}>
-                                        Añadir registro
+                                        Añadir accion
                                     </Text>
                                 </TouchableOpacity>
                             ) : null}
@@ -706,20 +720,28 @@ export function PamolsaActionFormDetailModal({
                         setOpenBehaviorSelect(false);
                     }}
                 />
-                <EditPhotoModal
-                    visible={type === 1 && editPhoto != null}
-                    imageUri={photoUri}
-                    onClose={() => setEditPhoto(null)}
-                    onApply={(v) => {
-                        if (type !== 1 || editPhoto == null) return;
-                        setRow1((p) => {
-                            const next = [...(p.photos_url ?? [])];
-                            next[editPhoto] = v;
-                            return { ...p, photos_url: next };
-                        });
-                        setEditPhoto(null);
-                    }}
-                />
+                {type === 1 && editPhoto != null ? (
+                    <View style={styles.editPhotoOverlay} pointerEvents="auto">
+                        <EditPhotoPanel
+                            embedded
+                            visible
+                            imageUri={photoUri}
+                            onClose={() => setEditPhoto(null)}
+                            onApply={(v) => {
+                                if (type !== 1 || editPhoto == null) return;
+                                setRow1((p) => {
+                                    const next = [...(p.photos_url ?? [])];
+                                    next[editPhoto] = v;
+                                    return {
+                                        ...p,
+                                        photos_url: normalizeTwoPhotoSlots(next),
+                                    };
+                                });
+                                setEditPhoto(null);
+                            }}
+                        />
+                    </View>
+                ) : null}
 
                 <PamolsaActionFormDetailModal
                     visible={nested.open}
@@ -764,6 +786,8 @@ const styles = StyleSheet.create({
         fontWeight: "800",
         color: COLORS.text,
         fontSize: 16,
+        lineHeight: 20,
+        paddingHorizontal: 4,
     },
     link: { color: COLORS.primary, fontSize: 16 },
     linkBold: { color: COLORS.primary, fontWeight: "800", fontSize: 16 },
@@ -858,4 +882,11 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     addBtnTxt: { color: COLORS.white, fontWeight: "800" },
+    /** Foto a pantalla completa dentro del mismo `Modal` (evita modal sobre modal). */
+    editPhotoOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        zIndex: 2000,
+        elevation: 2000,
+        backgroundColor: COLORS.white,
+    },
 });
