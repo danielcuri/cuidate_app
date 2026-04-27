@@ -173,6 +173,10 @@ export interface Forms {
     name?: any;
     form_sections?: FormSection[],
     databases: any[];
+    /** Logo cabecera (Ionic `canvas-form.page.html`). */
+    url_img?: string;
+    /** p. ej. `2` = slide extra «Aprobación». */
+    type?: number;
 }
 
 export interface FormData {
@@ -205,6 +209,8 @@ export interface FormDesign {
     columns: FormDesign[];
     default_value: string;
     db_data_id?: number;
+    /** Tipo 6: imagen decorativa */
+    url_img?: string;
 }
 
 export interface Properties {
@@ -214,6 +220,7 @@ export interface Properties {
     min_value: number;
     active_range: number;
     list_properties?: any;
+    disabled?: boolean;
 }
 
 export interface ExtraData {

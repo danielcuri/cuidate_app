@@ -468,7 +468,7 @@ export function ListPamolsa() {
                 <SafeAreaView style={styles.safeTop} edges={["top"]}>
                     <RecordsHeader
                         title="Registros Inspecciones"
-                        onBack={() => navigation.goBack()}
+                        onBack={() => navigation.navigate("FormMenu")}
                     />
                 </SafeAreaView>
                 <View style={styles.center}>
@@ -483,7 +483,7 @@ export function ListPamolsa() {
             <SafeAreaView style={styles.safeTop} edges={["top"]}>
                 <RecordsHeader
                     title="Registros Inspecciones"
-                    onBack={() => navigation.goBack()}
+                    onBack={() => navigation.navigate("FormMenu")}
                 />
             </SafeAreaView>
 

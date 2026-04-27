@@ -249,7 +249,7 @@ export function Effectiveness() {
   if (loading && !items.length) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <RecordsHeader title="Eficacia" onBack={() => navigation.goBack()} />
+        <RecordsHeader title="Eficacia" onBack={() => navigation.navigate('FormMenu')} />
         <View style={styles.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
@@ -259,7 +259,7 @@ export function Effectiveness() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <RecordsHeader title="Eficacia" onBack={() => navigation.goBack()} />
+      <RecordsHeader title="Eficacia" onBack={() => navigation.navigate('FormMenu')} />
       <View style={styles.page}>
         <TouchableOpacity
           style={styles.filterBlock}

@@ -25,7 +25,7 @@ export function RecordsHeader({
   title,
   onBack,
   style,
-  titleNumberOfLines = 1,
+  titleNumberOfLines,
   showBackButton = true,
 }: RecordsHeaderProps) {
   return (
@@ -49,7 +49,11 @@ export function RecordsHeader({
         ) : (
           <View style={styles.backBtnSpacer} />
         )}
-        <Text style={styles.toolbarTitle} numberOfLines={titleNumberOfLines}>
+        <Text
+          style={styles.toolbarTitle}
+          numberOfLines={titleNumberOfLines}
+          ellipsizeMode={titleNumberOfLines ? 'tail' : undefined}
+        >
           {title}
         </Text>
         <View style={styles.backBtnSpacer} />
@@ -102,9 +106,12 @@ const styles = StyleSheet.create({
   },
   toolbarTitle: {
     flex: 1,
+    flexShrink: 1,
+    flexWrap: 'wrap',
     textAlign: 'center',
     color: COLORS.changePasswordTitle,
     fontSize: 13,
     fontWeight: '900',
+    paddingHorizontal: 6,
   },
 });

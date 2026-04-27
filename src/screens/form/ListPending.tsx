@@ -64,7 +64,7 @@ export function ListPending() {
   return (
     <View style={styles.page}>
       <SafeAreaView style={styles.safeTop} edges={['top']}>
-        <RecordsHeader title="Pendientes" onBack={() => navigation.goBack()} />
+        <RecordsHeader title="Pendientes" onBack={() => navigation.navigate('FormMenu')} />
       </SafeAreaView>
       <FlatList
         data={items}

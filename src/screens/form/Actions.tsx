@@ -244,7 +244,7 @@ export function Actions() {
   if (loading && !items.length) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <RecordsHeader title="Seguimiento" onBack={() => navigation.goBack()} />
+        <RecordsHeader title="Seguimiento" onBack={() => navigation.navigate('FormMenu')} />
         <View style={styles.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
@@ -254,7 +254,7 @@ export function Actions() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <RecordsHeader title="Seguimiento" onBack={() => navigation.goBack()} />
+      <RecordsHeader title="Seguimiento" onBack={() => navigation.navigate('FormMenu')} />
       <View style={styles.page}>
         <TouchableOpacity
           style={styles.filterBlock}

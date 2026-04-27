@@ -9,6 +9,7 @@ import React, {
 import {
     ActivityIndicator,
     FlatList,
+    Image,
     NativeScrollEvent,
     NativeSyntheticEvent,
     ScrollView,
@@ -43,13 +44,19 @@ import {
     initEmptyFormState,
     buildDbArrays,
     searchFormInList,
-    validateEntireForm,
+    validateSection,
     hydrateFormDataFromRecord,
     findFormsRecordById,
+    findFieldInForm,
     type FormDataShape,
 } from "./canvas/canvasFormInit";
 import {
+    applySelectedDb,
+    applySelectedDbSelectable,
+} from "./canvas/canvasDbCascade";
+import {
     FormFieldRenderer,
+    applyStaticSelectConfirm,
     type SelectRequest,
 } from "./canvas/FormFieldRenderer";
 import { EditPhotoModal } from "./canvas/EditPhotoModal";
@@ -88,6 +95,7 @@ export function CanvasForm() {
     );
     const [tableField, setTableField] = useState<FormDesign | null>(null);
     const [photoEdit, setPhotoEdit] = useState<PhotoEditState | null>(null);
+    const [dbArrays, setDbArrays] = useState<Record<number, unknown[]>>({});
 
     const isEditRoute = route.name === "CanvasFormEdit";
     const editParams = route.params as RootStackParamList["CanvasFormEdit"];
@@ -95,6 +103,7 @@ export function CanvasForm() {
     const formIdParam = isEditRoute ? editParams.formId : newParams?.formId;
     const draftIndex = isEditRoute ? editParams.index : undefined;
     const formRecordId = !isEditRoute ? newParams?.formRecordId : undefined;
+    const readOnly = formRecordId != null;
 
     useLayoutEffect(() => {
         navigation.setOptions({ headerShown: false });
@@ -106,13 +115,6 @@ export function CanvasForm() {
         }
         return initEmptyFormState(form, { id: 0, name: "", signatureUrl: "" })
             .meta.gpsFieldIds;
-    }, [form]);
-
-    const dbOptions = useMemo(() => {
-        if (!form) {
-            return {};
-        }
-        return buildDbArrays(form);
     }, [form]);
 
     const patchField = useCallback((fieldId: number, value: unknown) => {
@@ -197,6 +199,9 @@ export function CanvasForm() {
             }
             setSlideIndex(0);
             listRef.current?.scrollToOffset({ offset: 0, animated: false });
+            if (f) {
+                setDbArrays(buildDbArrays(f));
+            }
         } catch (e) {
             console.log(e);
             setErr("Error al cargar el formulario.");
@@ -257,6 +262,16 @@ export function CanvasForm() {
     };
 
     const goNext = () => {
+        if (!form || !formData) {
+            return;
+        }
+        if (!validateSection(form, slideIndex, formData.fields)) {
+            alertService.present(
+                "Validación",
+                "Complete los campos obligatorios de esta sección antes de continuar.",
+            );
+            return;
+        }
         const i = Math.min(sections.length - 1, slideIndex + 1);
         listRef.current?.scrollToIndex({ index: i, animated: true });
         setSlideIndex(i);
@@ -267,11 +282,39 @@ export function CanvasForm() {
     }, []);
 
     const onSelectConfirm = (ids: (string | number)[]) => {
-        if (!selectModal || !formData) {
+        if (!selectModal || !formData || !form) {
             return;
         }
-        const v = selectModal.multiple ? ids : (ids[0] ?? "");
-        patchField(selectModal.fieldId, v);
+        const field = findFieldInForm(form, selectModal.fieldId);
+        if (!field) {
+            setSelectModal(null);
+            return;
+        }
+        if (selectModal.kind === "static") {
+            patchField(field.id, applyStaticSelectConfirm(field, ids));
+        } else if (selectModal.kind === "db_searchable") {
+            const raw = ids[0];
+            const res = applySelectedDbSelectable(
+                form,
+                formData.fields,
+                field,
+                raw,
+                dbArrays,
+            );
+            setFormData({ ...formData, fields: res.fields });
+            setDbArrays(res.dbArrays);
+        } else {
+            const raw = ids[0];
+            const res = applySelectedDb(
+                form,
+                formData.fields,
+                field,
+                raw,
+                dbArrays,
+            );
+            setFormData({ ...formData, fields: res.fields });
+            setDbArrays(res.dbArrays);
+        }
         setSelectModal(null);
     };
 
@@ -279,10 +322,10 @@ export function CanvasForm() {
         if (!form || !formData) {
             return;
         }
-        if (!validateEntireForm(form, formData.fields)) {
+        if (!validateSection(form, slideIndex, formData.fields)) {
             alertService.present(
                 "Validación",
-                "Revise los campos obligatorios en todas las secciones.",
+                "Revise los campos obligatorios en esta sección.",
             );
             return;
         }
@@ -368,12 +411,11 @@ export function CanvasForm() {
                 if (!prev) {
                     return prev;
                 }
-                const prevArr = (prev.fields[fieldId] as string[]) ?? [];
                 return {
                     ...prev,
                     fields: {
                         ...prev.fields,
-                        [fieldId]: [...prevArr, uri],
+                        [fieldId]: uri,
                     },
                 };
             });
@@ -388,7 +430,8 @@ export function CanvasForm() {
 
     const appendPhotoFromGallery = async (fieldId: number) => {
         try {
-            const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            const perm =
+                await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (!perm.granted) {
                 alertService.present(
                     "Galería",
@@ -414,12 +457,11 @@ export function CanvasForm() {
                 if (!prev) {
                     return prev;
                 }
-                const prevArr = (prev.fields[fieldId] as string[]) ?? [];
                 return {
                     ...prev,
                     fields: {
                         ...prev.fields,
-                        [fieldId]: [...prevArr, uri],
+                        [fieldId]: uri,
                     },
                 };
             });
@@ -499,11 +541,21 @@ export function CanvasForm() {
                     onBack={() => navigation.goBack()}
                     titleNumberOfLines={2}
                 />
+                {form.url_img ? (
+                    <View style={styles.logoRow}>
+                        <Image
+                            source={{ uri: form.url_img }}
+                            style={styles.logoImg}
+                            resizeMode="contain"
+                        />
+                    </View>
+                ) : null}
             </SafeAreaView>
             <FlatList
                 ref={listRef}
                 horizontal
                 pagingEnabled
+                scrollEnabled={false}
                 showsHorizontalScrollIndicator={false}
                 data={sections}
                 keyExtractor={(s) => String(s.id)}
@@ -530,7 +582,7 @@ export function CanvasForm() {
                                     field={el}
                                     value={formData.fields[el.id]}
                                     onChange={(v) => patchField(el.id, v)}
-                                    dbOptions={dbOptions}
+                                    dbArrays={dbArrays}
                                     onRequestSelect={onRequestSelect}
                                     onOpenTable={(tf) => setTableField(tf)}
                                     onEditPhoto={(fid, uri, idx) =>
@@ -542,6 +594,7 @@ export function CanvasForm() {
                                     }
                                     onLaunchCamera={appendPhoto}
                                     onLaunchGallery={appendPhotoFromGallery}
+                                    readOnly={readOnly}
                                 />
                             ))}
                         </ScrollView>
@@ -590,12 +643,18 @@ export function CanvasForm() {
                         </Text>
                     </TouchableOpacity>
                 </View>
-                <TouchableOpacity style={styles.saveBtn} onPress={saveRemote}>
-                    <Text style={styles.saveBtnTxt}>Guardar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.draftBtn} onPress={saveDraft}>
-                    <Text style={styles.draftBtnTxt}>Guardar borrador</Text>
-                </TouchableOpacity>
+                {!readOnly &&
+                slideIndex === (sections.length || 1) - 1 &&
+                sections.length > 0 ? (
+                    <TouchableOpacity style={styles.saveBtn} onPress={saveRemote}>
+                        <Text style={styles.saveBtnTxt}>Enviar</Text>
+                    </TouchableOpacity>
+                ) : null}
+                {!readOnly ? (
+                    <TouchableOpacity style={styles.draftBtn} onPress={saveDraft}>
+                        <Text style={styles.draftBtnTxt}>Guardar borrador</Text>
+                    </TouchableOpacity>
+                ) : null}
             </View>
 
             {selectModal?.visible ? (
@@ -681,6 +740,16 @@ const styles = StyleSheet.create({
     page: { flex: 1, backgroundColor: COLORS.menuContentBg },
     safeTop: {
         backgroundColor: COLORS.white,
+    },
+    logoRow: {
+        alignItems: "center",
+        paddingBottom: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.lightGray,
+    },
+    logoImg: {
+        width: 120,
+        height: 56,
     },
     center: {
         flex: 1,

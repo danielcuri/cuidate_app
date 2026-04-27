@@ -90,7 +90,7 @@ export function MedicalMenu() {
             <SafeAreaView style={styles.safeTop} edges={["top"]}>
                 <RecordsHeader
                     title={"Bienvenido " + (userService.user.name ?? "Usuario")}
-                    onBack={() => navigation.goBack()}
+                    onBack={() => navigation.navigate("PreMain")}
                 />
             </SafeAreaView>
             <ScrollView
@@ -137,7 +137,7 @@ export function MedicalMenu() {
                     </TouchableOpacity>
                 </View>
             </ScrollView>
-            <MenuFooter onBack={() => navigation.goBack()} />
+            <MenuFooter onBack={() => navigation.navigate("PreMain")} />
         </View>
     );
 }

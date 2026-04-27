@@ -32,7 +32,7 @@ export function LearningMenu() {
             <SafeAreaView style={styles.safeTop} edges={["top"]}>
                 <RecordsHeader
                     title={"Bienvenido " + (userService.user.name ?? "Usuario")}
-                    onBack={() => navigation.goBack()}
+                    onBack={() => navigation.navigate("PreMain")}
                 />
             </SafeAreaView>
             <ScrollView
@@ -76,13 +76,13 @@ export function LearningMenu() {
                 </View>
                 <View style={styles.footerImgWrap}>
                     <Image
-                        source={require("../../../assets/icon.png")}
+                        source={require("../../../assets/forms/portrait_forms.png")}
                         style={styles.footerImg}
                         resizeMode="contain"
                     />
                 </View>
             </ScrollView>
-            <MenuFooter onBack={() => navigation.goBack()} />
+            <MenuFooter onBack={() => navigation.navigate("PreMain")} />
         </View>
     );
 }

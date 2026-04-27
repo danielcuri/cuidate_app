@@ -103,7 +103,7 @@ export function Formats() {
             <SafeAreaView style={styles.safeTop} edges={["top"]}>
                 <RecordsHeader
                     title="Formatos"
-                    onBack={() => navigation.goBack()}
+                    onBack={() => navigation.navigate("FormMenu")}
                 />
             </SafeAreaView>
             <FlatList
