@@ -341,10 +341,12 @@ export function CanvasForm() {
                 if (draftIndex != null) {
                     await deleteDraft(draftIndex);
                 }
-                alertService.present(
-                    "Guardar",
-                    "Datos enviados correctamente.",
-                );
+                alertService.present("Guardar", "Datos enviados correctamente.", () => {
+                    navigation.reset({
+                        index: 0,
+                        routes: [{ name: "Formats" as const }],
+                    });
+                });
             }
         } catch (e) {
             console.log(e);

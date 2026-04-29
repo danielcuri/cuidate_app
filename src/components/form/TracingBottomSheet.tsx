@@ -68,6 +68,12 @@ export function TracingBottomSheet({
   navigation,
 }: Props) {
   const readonly = mode === 'view';
+  const resetToActions = () => {
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Actions' as never }],
+    });
+  };
 
   const minDate = useMemo(() => new Date(new Date().getFullYear(), 0, 1), []);
   const maxDate = useMemo(() => new Date(new Date().getFullYear() + 2, 11, 31), []);
@@ -180,19 +186,25 @@ export function TracingBottomSheet({
         model?: ActionTracing;
       };
       if (res?.error) {
-        queryService.manageErrors(res);
+        const msg = res?.msg || 'No se pudo enviar.';
+        alertService.present('Error', msg, () => {
+          onClose();
+          resetToActions();
+        });
         return;
       }
-      alertService.present('OK', 'Seguimiento envíado correctamente');
       const model = res?.model ?? payload;
       onSaved?.(model);
-      if (status === 2) {
-        navigation.navigate('Effectiveness');
-      }
-      onClose();
+      alertService.present('OK', 'Seguimiento envíado correctamente', () => {
+        onClose();
+        resetToActions();
+      });
     } catch (e) {
       console.log(e);
-      alertService.present('Error', 'No se pudo enviar.');
+      alertService.present('Error', 'No se pudo enviar.', () => {
+        onClose();
+        resetToActions();
+      });
     } finally {
       await loadingService.dismiss();
     }

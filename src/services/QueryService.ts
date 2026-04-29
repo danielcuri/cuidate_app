@@ -25,7 +25,6 @@ export class QueryService {
         } else {
             config.data = data;
         }
-        console.log({ ...config });
 
         const res = await apiClient.request<T>(config);
         return res.data;
@@ -43,6 +42,8 @@ export class QueryService {
         } else {
             config.data = data;
         }
+
+        console.log({ ...config });
         const res = await learningClient.request<T>(config);
         return res.data;
     }

@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "Cuidate App",
-    "slug": "cuidate-app",
-    "version": "1.0.0",
+    "name": "Primero Seguro",
+    "slug": "primero-seguro-app",
+    "version": "2.1.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icon_fixed.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash-pamolsa.png",
@@ -14,17 +14,17 @@
     "ios": {
       "supportsTablet": true
     },
-    "android": {
-      "icon": "./assets/icon.png",
+    "android": {      
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
-        "foregroundImage": "./assets/icon.png"  
+        "foregroundImage": "./assets/adaptive_fixed.png"  
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.anonymous.cuidateapp"
+      "versionCode": 20011,
+      "package": "io.pamolsa.simplex"
     },
     "web": {
       "favicon": "./assets/favicon.png"

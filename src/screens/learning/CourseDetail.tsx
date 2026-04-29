@@ -1,6 +1,7 @@
 import React, { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, SectionList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import type { StackScreenProps } from '@react-navigation/stack';
 import * as WebBrowser from 'expo-web-browser';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -50,9 +51,11 @@ export function CourseDetail({ navigation, route }: Props) {
     }
   }, [courseId, dni, setCurrentCourse, setCurrentCourseId]);
 
-  React.useEffect(() => {
-    void load();
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   const mappedSections: SectionRow[] = useMemo(() => {
     const list = sections ?? [];

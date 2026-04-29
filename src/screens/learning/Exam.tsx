@@ -25,6 +25,7 @@ export function Exam({ navigation, route }: Props) {
 
   const exam = useLearningStore((s) => s.currentExam);
   const questions = useLearningStore((s) => s.currentQuestions);
+  const setCurrentExam = useLearningStore((s) => s.setCurrentExam);
 
   const [timeDisplay, setTimeDisplay] = useState('00:00');
   const [onTime, setOnTime] = useState(true);
@@ -32,6 +33,33 @@ export function Exam({ navigation, route }: Props) {
   const startTimeRef = useRef<Date>(new Date());
 
   const [answers, setAnswers] = useState<Record<number, string | string[]>>({});
+
+  useEffect(() => {
+    if (!dni || !examId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await learningService.updateExamAttempt({ dni, exam_id: examId });
+        if (cancelled) return;
+        queryService.manageErrors(res);
+        if (res?.error) {
+          navigation.goBack();
+          return;
+        }
+        if (exam) {
+          setCurrentExam({
+            ...exam,
+            scholar_attempts: (exam.scholar_attempts ?? 0) + 1,
+          });
+        }
+      } catch {
+        // No bloqueamos el examen si el tracking de intento falla.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [dni, examId, exam, navigation, setCurrentExam]);
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
