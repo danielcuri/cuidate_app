@@ -42,7 +42,7 @@ export function Splash() {
     return (
         <View style={styles.wrap}>
             <Image
-                source={require("../../../assets/splash-pamolsa.png")}
+                source={require("../../../assets/splash_pamolsa.png")}
                 style={styles.img}
                 resizeMode="cover"
             />

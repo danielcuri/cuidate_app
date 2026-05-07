@@ -12,6 +12,7 @@ docs/
 # Expo
 .expo/
 dist/
+keystores/
 web-build/
 expo-env.d.ts
 

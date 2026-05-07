@@ -81,7 +81,7 @@ export function Login() {
 
     return (
         <ImageBackground
-            source={require("../../../assets/splash-pamolsa.png")}
+            source={require("../../../assets/splash_pamolsa.png")}
             style={styles.bg}
             resizeMode="cover"
         >
