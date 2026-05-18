@@ -23,7 +23,7 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 20013,
+      "versionCode": 20014,
       "package": "io.pamolsa.simplex",
       "blockedPermissions": [
         "android.permission.READ_MEDIA_IMAGES",

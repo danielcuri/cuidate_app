@@ -432,15 +432,6 @@ export function CanvasForm() {
 
     const appendPhotoFromGallery = async (fieldId: number) => {
         try {
-            const perm =
-                await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (!perm.granted) {
-                alertService.present(
-                    "Galería",
-                    "Se necesita permiso para acceder a tus fotos.",
-                );
-                return;
-            }
             const res = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
                 base64: true,

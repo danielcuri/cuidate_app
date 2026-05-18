@@ -138,11 +138,6 @@ export function TracingBottomSheet({
   };
 
   const onPickGallery = async (index: 0 | 1) => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permisos', 'Se necesita acceso a la galería.');
-      return;
-    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.5,
