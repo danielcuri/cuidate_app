@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+import type { StackNavigationProp } from "@react-navigation/stack";
 import { COLORS } from "@/theme/colors";
 import { trainingClient } from "@/api/apiClient";
 import { userService } from "@/services/UserService";
+import type { RootStackParamList } from "@/navigation/AppNavigator";
 
 type TrainingItem = {
     id: string;
@@ -30,6 +33,8 @@ type TrainingResponse = {
     data?: TrainingItem[];
 };
 
+type TrainingMenuNav = StackNavigationProp<RootStackParamList, "TrainingMenu">;
+
 function formatDate(value?: string) {
     if (!value) return "-";
     const date = new Date(value);
@@ -52,6 +57,7 @@ function formatStatus(status?: string) {
 }
 
 export function TrainingMenu() {
+    const navigation = useNavigation<TrainingMenuNav>();
     const [trainings, setTrainings] = useState<TrainingItem[]>([]);
 
     useEffect(() => {
@@ -107,7 +113,16 @@ export function TrainingMenu() {
                             0;
 
                         return (
-                            <View key={training.id} style={styles.card}>
+                            <TouchableOpacity
+                                key={training.id}
+                                style={styles.card}
+                                activeOpacity={0.85}
+                                onPress={() =>
+                                    navigation.navigate("TrainingMatrix", {
+                                        trainingId: training.id,
+                                    })
+                                }
+                            >
                                 <Text style={styles.item}>
                                     <Text style={styles.label}>
                                         Nombre del colaborador:{" "}
@@ -149,7 +164,7 @@ export function TrainingMenu() {
                                     </Text>
                                     {completed} / {total}
                                 </Text>
-                            </View>
+                            </TouchableOpacity>
                         );
                     })
                 )}

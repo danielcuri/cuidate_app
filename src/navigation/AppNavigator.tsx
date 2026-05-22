@@ -27,6 +27,7 @@ import { Lesson } from '@/screens/learning/Lesson';
 import { PreExam } from '@/screens/learning/PreExam';
 import { Survey } from '@/screens/learning/Survey';
 import { TrainingMenu } from '@/screens/training/TrainingMenu';
+import { TrainingMatrix } from '@/screens/training/TrainingMatrix';
 import { COLORS } from '@/theme/colors';
 
 export type RootStackParamList = {
@@ -55,6 +56,7 @@ export type RootStackParamList = {
   ListRest: undefined;
   LearningMenu: undefined;
   TrainingMenu: undefined;
+  TrainingMatrix: { trainingId: string };
   Courses: undefined;
   CourseDetail: { courseId: number; name: string };
   Lesson: { courseId: number; name: string; lessonId: number };
@@ -114,6 +116,7 @@ export function AppNavigator() {
           />
           <Root.Screen name="LearningMenu" component={LearningMenu} />
           <Root.Screen name="TrainingMenu" component={TrainingMenu} />
+          <Root.Screen name="TrainingMatrix" component={TrainingMatrix} />
           <Root.Screen name="Courses" component={Courses} />
           <Root.Screen name="CourseDetail" component={CourseDetail} />
           <Root.Screen name="Lesson" component={Lesson} />
