@@ -33,11 +33,15 @@ export function Exam({ navigation, route }: Props) {
   const startTimeRef = useRef<Date>(new Date());
 
   const [answers, setAnswers] = useState<Record<number, string | string[]>>({});
+  const examRef = useRef(exam);
+  examRef.current = exam;
 
   useEffect(() => {
     if (!dni || !examId) return;
+
     let cancelled = false;
-    (async () => {
+
+    void (async () => {
       try {
         const res = await learningService.updateExamAttempt({ dni, exam_id: examId });
         if (cancelled) return;
@@ -46,20 +50,23 @@ export function Exam({ navigation, route }: Props) {
           navigation.goBack();
           return;
         }
-        if (exam) {
+        const current = examRef.current;
+        if (current) {
           setCurrentExam({
-            ...exam,
-            scholar_attempts: (exam.scholar_attempts ?? 0) + 1,
+            ...current,
+            scholar_attempts: (current.scholar_attempts ?? 0) + 1,
           });
         }
       } catch {
         // No bloqueamos el examen si el tracking de intento falla.
       }
     })();
+
     return () => {
       cancelled = true;
     };
-  }, [dni, examId, exam, navigation, setCurrentExam]);
+    // Solo al montar o si cambian dni/examId; no re-ejecutar al actualizar currentExam.
+  }, [dni, examId]);
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });

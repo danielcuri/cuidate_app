@@ -458,6 +458,34 @@ export function PamolsaActionForm() {
         setSignatureFlag(true);
     };
 
+    /** Debug: por qué se muestra imagen vs SignaturePad (`signatureFlag && responsableSignUrl`). */
+    useEffect(() => {
+        const url = String(responsableSignUrl ?? "");
+        const urlPreview =
+            url.length > 80 ? `${url.slice(0, 80)}… (${url.length} chars)` : url;
+        const showSignaturePad = !(signatureFlag && url.trim().length > 0);
+        console.log("[PamolsaActionForm] firma", {
+            slideIndex,
+            signatureFlag,
+            responsableSignUrl: urlPreview,
+            responsableSignUrlEmpty: url.trim().length === 0,
+            profileSignatureUrl: sig
+                ? `${String(sig).slice(0, 80)}…`
+                : null,
+            showSignaturePad,
+            reason: showSignaturePad
+                ? "SignaturePad visible"
+                : signatureFlag
+                  ? "Imagen: signatureFlag=true y hay URL"
+                  : "Imagen: hay URL pero signatureFlag=false",
+        });
+    }, [
+        slideIndex,
+        signatureFlag,
+        responsableSignUrl,
+        sig,
+    ]);
+
     useLayoutEffect(() => {
         navigation.setOptions({ headerShown: false });
     }, [navigation]);

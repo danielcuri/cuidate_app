@@ -2,7 +2,7 @@
   "expo": {
     "name": "CUIDARTE",
     "slug": "cuidarte-app",
-    "version": "2.1.0",
+    "version": "2.1.1",
     "orientation": "portrait",
     "icon": "./assets/icon_fixed.png",
     "userInterfaceStyle": "light",
@@ -14,7 +14,8 @@
     "ios": {
       "supportsTablet": true
     },
-    "android": {      
+    "android": {
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/adaptive_fixed.png"  
@@ -23,7 +24,7 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 20014,
+      "versionCode": 20015,
       "package": "io.pamolsa.simplex",
       "blockedPermissions": [
         "android.permission.READ_MEDIA_IMAGES",

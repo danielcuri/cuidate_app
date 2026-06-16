@@ -21,11 +21,11 @@ export type SubmitExamPayload = {
     exam_start_time?: string;
     exam_finish_time?: string;
 };
+/** Índices 0–6 alineados con `CourseController::registerSurvey` (el 6 repite la pregunta del 4). */
 export type SubmitSurveyPayload = {
     dni: string;
     course_id: number;
-    answers: unknown;
-    comment?: string;
+    answers: (number | string)[];
 };
 export type GetAchievementsPayload = { dni: string };
 

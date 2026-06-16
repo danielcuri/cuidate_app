@@ -1,4 +1,5 @@
-import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { StackScreenProps } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,24 +28,27 @@ export function PreExam({ navigation, route }: Props) {
   const setCurrentQuestions = useLearningStore((s) => s.setCurrentQuestions);
   const currentExam = useLearningStore((s) => s.currentExam);
 
-  useEffect(() => {
-    const run = async () => {
-      if (!dni) return;
-      setLoading(true);
-      await loadingService.present();
-      try {
-        const res = await learningService.getExamDetail({ dni, exam_id: examId });
-        queryService.manageErrors(res);
-        setCurrentExam(res.exam);
-        setCurrentQuestions(res.questions ?? []);
-        setDisabled(!!res.error);
-      } finally {
-        await loadingService.dismiss();
-        setLoading(false);
-      }
-    };
-    void run();
+  const loadExam = useCallback(async () => {
+    if (!dni) return;
+    setLoading(true);
+    await loadingService.present();
+    try {
+      const res = await learningService.getExamDetail({ dni, exam_id: examId });
+      queryService.manageErrors(res);
+      setCurrentExam(res.exam);
+      setCurrentQuestions(res.questions ?? []);
+      setDisabled(!!res.error);
+    } finally {
+      await loadingService.dismiss();
+      setLoading(false);
+    }
   }, [dni, examId, setCurrentExam, setCurrentQuestions]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadExam();
+    }, [loadExam]),
+  );
 
   const meta = useMemo(() => {
     const ex = currentExam;
