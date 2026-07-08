@@ -2,7 +2,7 @@
   "expo": {
     "name": "CUIDARTE",
     "slug": "cuidarte-app",
-    "version": "2.1.1",
+    "version": "2.1.2",
     "orientation": "portrait",
     "icon": "./assets/icon_fixed.png",
     "userInterfaceStyle": "light",
@@ -24,7 +24,7 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 20015,
+      "versionCode": 20016,
       "package": "io.pamolsa.simplex",
       "blockedPermissions": [
         "android.permission.READ_MEDIA_IMAGES",

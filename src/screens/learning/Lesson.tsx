@@ -40,6 +40,7 @@ export function Lesson({ navigation, route }: Props) {
     const saveTick = useRef<NodeJS.Timeout | null>(null);
     const endedSentRef = useRef(false);
     const startAtRef = useRef(0);
+    const [savedStartAt, setSavedStartAt] = useState(0);
     const [loading, setLoading] = useState(true);
     const [ready, setReady] = useState(false);
     const [lastTime, setLastTime] = useState(0);
@@ -97,7 +98,9 @@ export function Lesson({ navigation, route }: Props) {
                     x.video === videoId,
             );
             const t = found?.time ?? 0;
-            startAtRef.current = Math.max(0, Math.floor(t));
+            const start = Math.max(0, Math.floor(t));
+            startAtRef.current = start;
+            setSavedStartAt(start);
             setLastTime(t);
             endedSentRef.current = false;
             setReady(false);
@@ -123,7 +126,7 @@ export function Lesson({ navigation, route }: Props) {
     }, [lastTime, lessonId, ready, userId, videoId]);
 
     const playerHtml = useMemo(() => {
-        const startAt = startAtRef.current;
+        const startAt = savedStartAt;
         const src = embedUrl;
         return `<!doctype html>
 <html>
@@ -159,10 +162,13 @@ export function Lesson({ navigation, route }: Props) {
         var player = new window.Vimeo.Player(iframe);
         var endedSent = false;
         var tick = null;
+        var simTick = null;
+        var startAt = ${startAt};
+        var simulationTime = startAt;
+        var playing = false;
 
         player.ready().then(function() {
           send({ type: "ready" });
-          var startAt = ${startAt};
           if (startAt > 0) {
             player.setCurrentTime(startAt).catch(function(){});
           }
@@ -171,11 +177,38 @@ export function Lesson({ navigation, route }: Props) {
               send({ type: "time", value: t });
             }).catch(function(){});
           }, 5000);
+          simTick = setInterval(function() {
+            if (playing) {
+              simulationTime++;
+            }
+          }, 1000);
         }).catch(function(){});
+
+        player.on('play', function(data) {
+          playing = true;
+          if (data.seconds === 0 && startAt > 0) {
+            player.setCurrentTime(startAt).catch(function(){});
+            simulationTime = startAt;
+          }
+        });
+
+        player.on('pause', function() {
+          playing = false;
+        });
+
+        player.on('seeked', function(data) {
+          var seconds = data.seconds;
+          if (seconds > simulationTime) {
+            player.setCurrentTime(simulationTime).catch(function(){});
+          } else {
+            simulationTime = seconds;
+          }
+        });
 
         player.on('ended', function() {
           if (endedSent) return;
           endedSent = true;
+          playing = false;
           send({ type: "ended" });
         });
 
@@ -183,19 +216,22 @@ export function Lesson({ navigation, route }: Props) {
           try {
             var data = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
             if (data && data.type === "seek" && typeof data.value === "number") {
-              player.setCurrentTime(Math.max(0, data.value)).catch(function(){});
+              var target = Math.max(0, data.value);
+              simulationTime = target;
+              player.setCurrentTime(target).catch(function(){});
             }
           } catch (err) {}
         });
 
         window.addEventListener('unload', function() {
           try { tick && clearInterval(tick); } catch (e) {}
+          try { simTick && clearInterval(simTick); } catch (e) {}
         });
       })();
     </script>
   </body>
 </html>`;
-    }, [embedUrl]);
+    }, [embedUrl, savedStartAt]);
 
     const onMessage = async (ev: any) => {
         const raw = ev?.nativeEvent?.data;
@@ -264,6 +300,7 @@ export function Lesson({ navigation, route }: Props) {
                 <>
                     <View style={styles.player}>
                         <WebView
+                            key={`${videoId}-${savedStartAt}`}
                             ref={webRef}
                             source={{ html: playerHtml }}
                             javaScriptEnabled
