@@ -734,7 +734,8 @@ export function PamolsaActionFormDetailModal({
                                     next[editPhoto] = v;
                                     return {
                                         ...p,
-                                        photos_url: normalizeTwoPhotoSlots(next),
+                                        photos_url:
+                                            normalizeTwoPhotoSlots(next),
                                     };
                                 });
                                 setEditPhoto(null);
